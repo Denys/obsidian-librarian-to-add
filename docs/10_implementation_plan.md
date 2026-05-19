@@ -9,8 +9,8 @@ flowchart TD
     P2[Phase 2<br/>Safe staged writer<br/>DONE - pending local tests]
     P3[Phase 3<br/>Markdown/TXT ingest<br/>DONE - pending local tests]
     P4[Phase 4<br/>Schemas + validators<br/>DONE - pending local tests]
-    P5[Phase 5<br/>Eval harness<br/>NEXT]
-    P6[Phase 6<br/>Second Brain reference intake]
+    P5[Phase 5<br/>Eval harness<br/>DONE - pending local tests]
+    P6[Phase 6<br/>Second Brain reference intake<br/>NEXT]
     P7[Phase 7<br/>Reusable Codex skills]
     P8[Phase 8<br/>Optional LLM extraction]
     P9[Phase 9<br/>Optional Agents SDK runtime]
@@ -27,8 +27,9 @@ flowchart TD
 | 2 | Done, pending local test run | Safe staged writer, path checks, no-overwrite behavior, and destructive-write regression tests added. |
 | 3 | Done, pending local test run | Deterministic Markdown/TXT ingest, staged source notes, review report, parser/renderer tests added. |
 | 4 | Done, pending local test run | Staged-note validation, frontmatter checks, report-skipping behavior, and validation CLI added. |
-| 5 | Next | Eval harness and golden cases. |
-| 6+ | Planned | Second Brain reference, reusable skills, optional LLM/Agents SDK layers. |
+| 5 | Done, pending local test run | Golden eval catalog and deterministic eval runner added. |
+| 6 | Next | Second Brain reference intake, only after source material exists. |
+| 7+ | Planned | Reusable skills, optional LLM extraction, optional Agents SDK layers. |
 
 ## Phase 0 — Documentation organization
 
@@ -120,10 +121,19 @@ Acceptance criteria:
 
 Deliverables:
 
-- fixture vault;
-- golden eval cases;
-- pass/fail eval runner;
-- safety and note-quality evals.
+- `evals/cases.yaml`;
+- `evals/run_evals.py`;
+- deterministic safety and quality evals;
+- eval runner test.
+
+Acceptance criteria:
+
+- evals require no API keys, network access, or model calls;
+- evals cover staging-only writes;
+- evals cover read-only no-write behavior;
+- evals cover duplicate ingest unique paths;
+- evals cover unsupported-file reporting;
+- evals cover validator failure behavior.
 
 ## Phase 6 — Second Brain reference intake
 

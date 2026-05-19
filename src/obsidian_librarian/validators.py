@@ -29,6 +29,8 @@ REQUIRED_SECTIONS_BY_TYPE = {
     ),
 }
 
+REPORT_FILE_PREFIX = "review_report"
+
 
 @dataclass(frozen=True)
 class ValidationIssue:
@@ -45,6 +47,7 @@ class ValidationSummary:
 
     root: Path
     checked_files: list[Path] = field(default_factory=list)
+    skipped_files: list[Path] = field(default_factory=list)
     issues: list[ValidationIssue] = field(default_factory=list)
 
     @property
@@ -66,10 +69,18 @@ def validate_path(path: str | Path) -> ValidationSummary:
     for candidate in candidates:
         if not candidate.is_file() or candidate.suffix.lower() != ".md":
             continue
+        if should_skip_validation(candidate):
+            summary.skipped_files.append(candidate)
+            continue
         summary.checked_files.append(candidate)
         summary.issues.extend(validate_note(candidate))
 
     return summary
+
+
+def should_skip_validation(path: Path) -> bool:
+    """Return true for generated Markdown files that are not staged notes."""
+    return path.stem.startswith(REPORT_FILE_PREFIX)
 
 
 def validate_note(path: Path) -> list[ValidationIssue]:
@@ -140,6 +151,7 @@ def render_validation_summary(summary: ValidationSummary) -> str:
         "",
         f"- Root: `{summary.root}`",
         f"- Checked Markdown files: {len(summary.checked_files)}",
+        f"- Skipped Markdown files: {len(summary.skipped_files)}",
         f"- Issues: {len(summary.issues)}",
         "",
     ]

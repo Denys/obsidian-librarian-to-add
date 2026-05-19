@@ -14,11 +14,11 @@ Inspected top-level material:
 |---|---|---|
 | `SB_OS/Ben AI OS Setup.md` | Local markdown setup/index note for a BenAI Second Brain plugin pack. | Reference-only. Do not commit raw source. |
 | `SB_OS/5-Obsidian-Skills-to-Build-a-Second-Brain__full-setup-guide.pdf` | 37-page guide, version 3.0, May 2026, describing five Claude/Obsidian skills. | Reference-only. Summarize principles only. |
-| `SB_OS/skills/os-setup/` | Skill bundle for bootstrapping and onboarding an Obsidian vault. | Reference-only; contains templates and opinionated vault setup logic. |
-| `SB_OS/skills/os-operator/` | Skill bundle for building and scheduling an autonomous vault operator prompt. | Reference-only; runtime scheduling is outside this project phase. |
-| `SB_OS/skills/os-optimizer/` | Skill bundle for vault audit, linting, discoverability checks, and dashboard reporting. | Reference-only; useful for review heuristics, not direct behavior. |
-| `SB_OS/skills/team-os/` | Skill bundle for team vault sharing using a Relay fork and folder permissions. | Out of scope for this deterministic CLI. |
-| `SB_OS/skills/os-mcp/` | Skill bundle plus bundled Relay MCP server reference source. | Out of scope; do not commit raw code or add MCP runtime. |
+| `SB_OS/skills/os-setup/` | Skill bundle for bootstrapping and onboarding an Obsidian vault. | Adapted as project-local `sb-os-vault-scaffold-review`; raw setup behavior is not applied. |
+| `SB_OS/skills/os-operator/` | Skill bundle for building and scheduling an autonomous vault operator prompt. | Adapted as project-local `sb-os-operator-planning`; scheduling/runtime behavior remains deferred. |
+| `SB_OS/skills/os-optimizer/` | Skill bundle for vault audit, linting, discoverability checks, and dashboard reporting. | Adapted as project-local `sb-os-vault-audit`; auto-fix/reorganization behavior is not applied. |
+| `SB_OS/skills/team-os/` | Skill bundle for team vault sharing using a Relay fork and folder permissions. | Adapted as project-local `sb-os-team-sharing-plan`; Relay/plugin behavior remains deferred. |
+| `SB_OS/skills/os-mcp/` | Skill bundle plus bundled Relay MCP server reference source. | Adapted as project-local `sb-os-mcp-planning`; MCP deploy/runtime behavior remains deferred. |
 
 Observed file mix:
 
@@ -26,7 +26,7 @@ Observed file mix:
 - One PDF guide.
 - Bundled TypeScript/JavaScript/JSON/HTML/CSS reference implementation files under skill references.
 
-Raw material appears third-party and includes bundled plugin/server code. Treat it as local reference material only unless the repository owner explicitly decides to track it.
+Raw material appears third-party and includes bundled plugin/server code. The project-local integrations summarize and adapt safe review/planning patterns; they do not execute raw SB_OS skills, install global skills, deploy servers, schedule operators, install Relay, or mutate a vault.
 
 ## Concise summary
 
@@ -100,8 +100,8 @@ The librarian should avoid turning an inbox into a larger staged mess. A good ru
 | Deterministic placeholder honesty | Do not label placeholder text as a real summary. | Optional LLM summaries must be behind explicit flags. | Eval case checking placeholder wording remains honest. |
 | Link quality | Include a `Links` section and surface missing links as suggestions. | Add link graph linting later. | Skill review output, not hard runtime validation. |
 | Knowledge hoarding prevention | Report unsupported files and review warnings. | Add duplicate/oversized-source review suggestions. | Eval cases and review report checks. |
-| Autonomous operator ideas | Defer. | Consider only after deterministic CLI and optional LLM phase. | Not applicable in Phase 6. |
-| MCP / team sync / scheduling | Defer. | Separate future architecture decision if ever needed. | Not applicable in Phase 6. |
+| Autonomous operator ideas | Planning-only via `sb-os-operator-planning`. | Consider runtime only after explicit future approval. | No scheduling or connector calls. |
+| MCP / team sync / scheduling | Planning-only via `sb-os-mcp-planning` and `sb-os-team-sharing-plan`. | Separate future architecture decision if ever needed. | No MCP deploy, Relay install, or recurring automation. |
 
 ## Deterministic eval ideas
 
@@ -127,4 +127,5 @@ Phase 6 does not add:
 - scheduled operators;
 - team sync or permission logic;
 - direct vault writes outside `90_Staging/`;
-- raw SB_OS source material committed to the public repository.
+- raw SB_OS skills executed as live automation;
+- global SB_OS skill installation.

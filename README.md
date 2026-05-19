@@ -12,12 +12,13 @@ The project has moved beyond documentation-only setup.
 |---:|---|---|
 | 0 | Done | Documentation organization merged in PR #1. |
 | 1 | Done | Python package skeleton and CLI scaffold merged in PR #1. |
-| 2 | Draft PR #2 | Safe staged writer implemented; pending local/CI tests. |
-| 3 | Draft PR #2 | Deterministic Markdown/TXT ingest implemented; pending local/CI tests. |
-| 4 | Draft PR #2 | Staged-note validators implemented; pending local/CI tests. |
-| 5 | Draft PR #2 | Golden eval catalog and deterministic eval runner implemented; pending local/CI tests. |
-| 6 | Done, pending review | SB_OS reference intake integrated as summaries, skill review criteria, and deterministic eval ideas; raw SB_OS source remains untracked. |
-| 7+ | Planned | Reusable skills refinement, optional LLM extraction, optional Agents SDK runtime. |
+| 2 | Done, verified locally | Safe staged writer implemented and covered by tests. |
+| 3 | Done, verified locally | Deterministic Markdown/TXT ingest implemented and covered by tests/evals. |
+| 4 | Done, verified locally | Staged-note validators implemented and covered by tests/ruff. |
+| 5 | Done, verified locally | Golden eval catalog and deterministic eval runner implemented and passing locally. |
+| 6 | Done | SB_OS reference intake integrated as summaries, skill review criteria, and deterministic eval ideas; raw SB_OS source remains untracked. |
+| 7 | Active | Reusable skill refinement and deterministic note-quality eval implementation. |
+| 8+ | Planned | Optional LLM extraction and optional Agents SDK runtime. |
 
 ## What works in the current draft branch
 
@@ -104,4 +105,4 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-Lane B Phase 6 docs are ready for review. Rebase or merge this docs/reference branch after the PR #2 code/test lane is stable.
+Complete Phase 7 by refining reusable Codex skills, keeping note-quality checks deterministic, and implementing the cataloged Phase 6 quality evals.

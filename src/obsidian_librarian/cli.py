@@ -9,6 +9,7 @@ from pathlib import Path
 from obsidian_librarian import __version__
 from obsidian_librarian.ingest import ingest_inbox
 from obsidian_librarian.review_report import render_review_report
+from obsidian_librarian.validators import render_validation_summary, validate_path
 
 
 DESCRIPTION = "Safe deterministic-first Obsidian Librarian CLI."
@@ -50,17 +51,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate = subparsers.add_parser(
         "validate",
-        help="Placeholder for future staged-note validation.",
+        help="Validate staged Markdown notes.",
     )
     validate.add_argument(
         "path",
-        nargs="?",
-        help="Path to validate in a later phase.",
+        help="Markdown file or directory to validate.",
     )
 
     report = subparsers.add_parser(
         "report",
-        help="Placeholder for future review-report generation.",
+        help="Placeholder for future review-report inspection.",
     )
     report.add_argument(
         "path",
@@ -83,6 +83,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "ingest":
         return run_ingest_command(args)
 
+    if args.command == "validate":
+        return run_validate_command(args)
+
     print(
         f"Command '{args.command}' is registered, but runtime behavior is not implemented yet."
     )
@@ -101,6 +104,18 @@ def run_ingest_command(args: argparse.Namespace) -> int:
     if result.report_path is not None:
         print(f"\nReview report written to: {result.report_path}")
     return 0
+
+
+def run_validate_command(args: argparse.Namespace) -> int:
+    """Run the validate command."""
+    try:
+        summary = validate_path(Path(args.path))
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return 2
+
+    print(render_validation_summary(summary))
+    return 0 if summary.passed else 1
 
 
 if __name__ == "__main__":

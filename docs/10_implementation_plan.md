@@ -8,8 +8,8 @@ flowchart TD
     P1[Phase 1<br/>Python package skeleton<br/>DONE]
     P2[Phase 2<br/>Safe staged writer<br/>DONE - pending local tests]
     P3[Phase 3<br/>Markdown/TXT ingest<br/>DONE - pending local tests]
-    P4[Phase 4<br/>Schemas + templates + validators<br/>NEXT]
-    P5[Phase 5<br/>Review report + eval harness]
+    P4[Phase 4<br/>Schemas + validators<br/>DONE - pending local tests]
+    P5[Phase 5<br/>Eval harness<br/>NEXT]
     P6[Phase 6<br/>Second Brain reference intake]
     P7[Phase 7<br/>Reusable Codex skills]
     P8[Phase 8<br/>Optional LLM extraction]
@@ -26,8 +26,9 @@ flowchart TD
 | 1 | Done | Python package skeleton and safe CLI placeholders added. |
 | 2 | Done, pending local test run | Safe staged writer, path checks, no-overwrite behavior, and destructive-write regression tests added. |
 | 3 | Done, pending local test run | Deterministic Markdown/TXT ingest, staged source notes, review report, parser/renderer tests added. |
-| 4 | Next | Formal schemas, templates, and validators. |
-| 5+ | Planned | Eval harness, Second Brain reference, optional LLM/Agents SDK layers. |
+| 4 | Done, pending local test run | Staged-note validation, frontmatter checks, report-skipping behavior, and validation CLI added. |
+| 5 | Next | Eval harness and golden cases. |
+| 6+ | Planned | Second Brain reference, reusable skills, optional LLM/Agents SDK layers. |
 
 ## Phase 0 — Documentation organization
 
@@ -95,18 +96,27 @@ Acceptance criteria:
 - read-only mode performs no writes;
 - runtime remains deterministic.
 
-## Phase 4 — Schemas, templates, validators
+## Phase 4 — Schemas and validators
 
 Deliverables:
 
-- source note schema;
-- atomic note schema;
-- action/open-question schema;
-- uncertainty entry schema;
-- frontmatter validation;
-- validation CLI behavior.
+- staged-note validation in `src/obsidian_librarian/validators.py`;
+- simple frontmatter parsing without external dependencies;
+- required metadata checks by note type;
+- required section checks for source and atomic notes;
+- review-report skip behavior;
+- validation CLI behavior;
+- validator tests.
 
-## Phase 5 — Review report and eval harness
+Acceptance criteria:
+
+- valid generated source notes pass validation;
+- missing frontmatter fails validation;
+- missing required sections fail validation;
+- generated review reports are skipped by note validation;
+- `validate` returns non-zero for validation failures.
+
+## Phase 5 — Eval harness
 
 Deliverables:
 

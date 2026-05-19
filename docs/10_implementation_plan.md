@@ -6,12 +6,12 @@
 flowchart TD
     P0[Phase 0<br/>Documentation organization<br/>DONE]
     P1[Phase 1<br/>Python package skeleton<br/>DONE]
-    P2[Phase 2<br/>Safe staged writer<br/>DONE - pending local tests]
-    P3[Phase 3<br/>Markdown/TXT ingest<br/>DONE - pending local tests]
-    P4[Phase 4<br/>Schemas + validators<br/>DONE - pending local tests]
-    P5[Phase 5<br/>Eval harness<br/>DONE - pending local tests]
-    P6[Phase 6<br/>Second Brain reference intake<br/>DONE - pending review]
-    P7[Phase 7<br/>Reusable Codex skills]
+    P2[Phase 2<br/>Safe staged writer<br/>DONE - verified locally]
+    P3[Phase 3<br/>Markdown/TXT ingest<br/>DONE - verified locally]
+    P4[Phase 4<br/>Schemas + validators<br/>DONE - verified locally]
+    P5[Phase 5<br/>Eval harness<br/>DONE - verified locally]
+    P6[Phase 6<br/>Second Brain reference intake<br/>DONE]
+    P7[Phase 7<br/>Reusable skills + note-quality evals<br/>ACTIVE]
     P8[Phase 8<br/>Optional LLM extraction]
     P9[Phase 9<br/>Optional Agents SDK runtime]
 
@@ -24,12 +24,13 @@ flowchart TD
 |---:|---|---|
 | 0 | Done | Documentation organized. |
 | 1 | Done | Python package skeleton and safe CLI placeholders added. |
-| 2 | Done, pending local test run | Safe staged writer, path checks, no-overwrite behavior, and destructive-write regression tests added. |
-| 3 | Done, pending local test run | Deterministic Markdown/TXT ingest, staged source notes, review report, parser/renderer tests added. |
-| 4 | Done, pending local test run | Staged-note validation, frontmatter checks, report-skipping behavior, and validation CLI added. |
-| 5 | Done, pending local test run | Golden eval catalog and deterministic eval runner added. |
-| 6 | Done, pending review | SB_OS source material inspected; principles, skill review criteria, and deterministic eval ideas integrated without committing raw source. |
-| 7+ | Planned | Reusable skills, optional LLM extraction, optional Agents SDK layers. |
+| 2 | Done, verified locally | Safe staged writer, path checks, no-overwrite behavior, and destructive-write regression tests pass locally. |
+| 3 | Done, verified locally | Deterministic Markdown/TXT ingest, staged source notes, review report, parser/renderer tests pass locally. |
+| 4 | Done, verified locally | Staged-note validation, frontmatter checks, report-skipping behavior, and validation CLI pass locally. |
+| 5 | Done, verified locally | Golden eval catalog and deterministic eval runner pass locally. |
+| 6 | Done | SB_OS source material inspected; principles, skill review criteria, and deterministic eval ideas integrated without committing raw source. |
+| 7 | Active | Reusable skills are being normalized and Phase 6 note-quality evals are becoming executable. |
+| 8+ | Planned | Optional LLM extraction and optional Agents SDK layers. |
 
 ## Phase 0 — Documentation organization
 
@@ -153,10 +154,31 @@ Acceptance criteria:
 - extracted principles map to staged review, provenance, note quality, actionability, retrieval, and link quality;
 - non-goals explicitly exclude LLM calls, embeddings, PDF parsing, OCR, MCP, Agents SDK runtime, scheduling, and vault mutation behavior.
 
-## Phase 7+ — Advanced layers
+## Phase 7 - Reusable skills and deterministic note-quality evals
+
+Goal: make reusable Codex skills operationally useful, non-overlapping, and backed by deterministic quality checks.
+
+Deliverables:
+
+- normalize `.agents/skills/*/SKILL.md` around trigger, inputs, non-actions, workflow, deterministic checks, output format, and eval hooks;
+- document skill routing in `docs/42_codex_skills.md`;
+- adapt safe SB_OS concepts into project-local review/planning skills under `.agents/skills/sb-os-*`;
+- add deterministic note-quality review in `src/obsidian_librarian/note_quality.py`;
+- implement the cataloged Phase 6 note-quality evals in `evals/run_evals.py`;
+- keep all behavior local, deterministic, and review-only.
+
+Acceptance criteria:
+
+- `obsidian-note-quality` owns structural correctness;
+- `second-brain-pattern-review` owns retrieval/usefulness/actionability review;
+- missing provenance, missing staged status, missing type, summary overclaiming, and detectable action-collapse are blocking note-quality findings;
+- missing links or weak actionability remain suggestions;
+- SB_OS-derived skills are project-local only and split active review skills from deferred runtime planning skills;
+- no LLM calls, embeddings, MCP, PDF/OCR, Agents SDK runtime, autonomous vault promotion, or deletion behavior are introduced.
+
+## Phase 8+ - Advanced layers
 
 Only after deterministic safety works:
 
-- add reusable Codex skills;
 - add optional LLM extraction behind an explicit flag;
 - add Agents SDK runtime last.

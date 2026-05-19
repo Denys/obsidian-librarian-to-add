@@ -1,56 +1,50 @@
-# Second Brain Pattern Review Skill
-
-Use this workflow when asked to review generated Obsidian Librarian notes, staged notes, or review reports for Second Brain quality.
-
-Do not use this skill to mutate a vault, promote notes, run autonomous operators, call MCP tools, add embeddings, or summarize raw third-party reference material.
+# Second Brain Pattern Review
 
 ## Trigger
 
-Run this review when the user asks for:
-
-- Second Brain pattern review;
-- note-quality review;
-- staged-note quality checks;
-- retrieval, link, actionability, or provenance review;
-- deterministic eval ideas for generated notes.
+Use this skill when reviewing generated notes for knowledge usefulness: retrieval, actionability, source traceability, and avoiding knowledge hoarding.
 
 ## Inputs
 
-Inspect only the files relevant to the review:
+- Generated staged notes under `90_Staging/`.
+- Generated `review_report.md`.
+- Note schema docs when needed.
+- `docs/70_second_brain_reference.md` as reference context when the task asks for Second Brain alignment.
 
-- generated staged notes under `90_Staging/`;
-- generated `review_report.md`;
-- note schema docs when needed;
-- eval catalog when asked for deterministic coverage.
+## Non-actions
 
-Treat Second Brain references as design context only. Repository safety rules and note schemas remain authoritative.
+- Do not mutate a vault or promote notes.
+- Do not run autonomous operators, call MCP tools, add embeddings, parse PDFs/OCR, or add Agents SDK runtime.
+- Do not copy raw SB_OS material into outputs.
+- Do not override repository safety rules or note schemas.
 
-## Checks
+## Workflow
 
-### Deterministic checks
+1. Inspect only the relevant staged notes and review reports.
+2. Separate deterministic blocking findings from quality suggestions.
+3. Check whether notes are useful to future retrieval and review.
+4. Keep link/actionability gaps as suggestions unless a deterministic schema rule is broken.
+5. Propose eval hooks for repeated quality failures.
 
-These are hard review findings when missing from a generated note:
+## Deterministic checks
 
-1. `source_path` or an equivalent source reference is present.
-2. `status: staged` is present for generated notes.
-3. Note type is visible and machine-checkable.
-4. Raw source files are not modified.
-5. Facts, action items, open questions, decisions, and conflicts are not collapsed into one undifferentiated section.
-6. Placeholder summaries are labeled honestly and do not claim semantic extraction when the run was deterministic.
+Blocking findings:
 
-### Quality suggestions
+1. `source_path` or equivalent provenance is missing.
+2. `status: staged` is missing or not staged.
+3. Note type is missing.
+4. Facts, action items, open questions, decisions, and conflicts are collapsed into one undifferentiated section.
+5. Placeholder summaries claim semantic extraction in a deterministic run.
 
-These are suggestions, not hard failures:
+Suggestions:
 
-1. Add meaningful links or wikilinks where the target is obvious.
-2. Split oversized or multi-topic generated notes into smaller review candidates.
+1. Add meaningful wikilinks where targets are obvious.
+2. Split oversized or multi-topic generated notes.
 3. Add retrieval handles such as project, source title, tags, or stable filenames.
 4. Improve actionability by separating follow-up work from background notes.
 5. Flag knowledge-hoarding patterns: large dumps, no review path, no source, or vague titles.
 
 ## Output format
-
-Return concise review output:
 
 ```text
 Verdict: pass | pass with suggestions | fail
@@ -59,27 +53,17 @@ Blocking findings:
 - [id] file:line - issue - deterministic reason
 
 Suggestions:
-- [id] file:line - improvement - why it helps retrieval/review
+- [id] file:line - improvement - retrieval/review value
 
 Eval candidates:
 - case_id - deterministic signal - expected result
 
 Non-actions:
-- Items intentionally deferred because they require LLMs, embeddings, MCP, OCR, PDF parsing, scheduling, or vault mutation.
+- Deferred because they require LLMs, embeddings, MCP, OCR, PDF parsing, scheduling, or vault mutation.
 ```
 
-If no blocking findings exist, say so directly and list only useful suggestions or eval gaps.
+## Eval hooks
 
-## Deterministic review criteria
-
-A review should be reproducible from file content alone. Prefer checks based on:
-
-- frontmatter keys;
-- required headings;
-- literal source paths;
-- staged status;
-- section separation;
-- review report entries;
-- absence of unsupported runtime behavior.
-
-Avoid criteria that require subjective semantic judgment unless they are clearly labeled as suggestions.
+- Use `src/obsidian_librarian/note_quality.py` for executable deterministic quality checks.
+- Add catalog entries to `evals/cases.yaml` for planned quality checks.
+- Add executable eval functions in `evals/run_evals.py` when a quality check becomes active.

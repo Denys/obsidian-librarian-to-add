@@ -1,32 +1,56 @@
-# Obsidian Note Quality Skill
+# Obsidian Note Quality
 
-Use this workflow when reviewing generated Obsidian notes, templates, or note schemas.
+## Trigger
 
-## Checks
+Use this skill when reviewing generated notes for structural correctness against Obsidian Librarian schemas.
 
-1. Metadata is present and simple.
-2. Source reference is preserved.
-3. The note has a clear type.
-4. Action items are separate from factual claims.
-5. Uncertainty is visible.
-6. Links are useful rather than decorative.
-7. The note is reviewable before it enters the main vault.
+## Inputs
 
-## Review dimensions
+- Generated staged notes.
+- Note schema docs.
+- Validator output.
+- Review report when available.
 
-- frontmatter quality;
-- title quality;
-- section completeness;
-- source traceability;
-- link usefulness;
-- project/topic classification;
-- human review readiness.
+## Non-actions
 
-## Output
+- Do not judge broad knowledge usefulness here; use `second-brain-pattern-review` for retrieval/actionability.
+- Do not promote staged notes into the vault.
+- Do not invent semantic summaries or missing facts.
+- Do not add LLM calls, embeddings, MCP, Agents SDK runtime, PDF/OCR, or vault automation.
 
-Return:
+## Workflow
 
-- pass/fail summary;
-- issues found;
-- suggested patch;
-- eval case if the issue should become repeatable.
+1. Inspect note frontmatter, type, status, and required sections.
+2. Check source/provenance metadata.
+3. Check section completeness for the declared note type.
+4. Check that action items and factual claims are structurally separate.
+5. Report blocking schema issues before suggestions.
+
+## Deterministic checks
+
+- Frontmatter opens and closes correctly.
+- Required fields exist for the note type.
+- `status: staged` exists for generated notes.
+- Required sections exist.
+- `source_path` exists where the schema requires provenance.
+- Review reports are not treated as staged notes.
+
+## Output format
+
+```text
+Verdict: pass | fail
+
+Blocking issues:
+- file - issue - schema reason
+
+Suggestions:
+- file - improvement
+
+Eval hook:
+- Add when this issue should become repeatable.
+```
+
+## Eval hooks
+
+- Add tests in `tests/test_validators.py` for schema validation changes.
+- Add evals when structural quality should be checked across generated ingest outputs.

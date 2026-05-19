@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from obsidian_librarian.ingest import ingest_inbox
+from obsidian_librarian.note_quality import review_note_quality
 from obsidian_librarian.validators import validate_path
 
 
@@ -114,12 +115,170 @@ def eval_validation_catches_broken_note() -> EvalResult:
         return EvalResult("validation_catches_broken_note", passed, "validator failure check")
 
 
+def eval_source_note_requires_source_path() -> EvalResult:
+    """Generated source notes should preserve source_path provenance."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "note.md").write_text("# Note\n", encoding="utf-8")
+
+        ingest_inbox(inbox, root, mode="draft")
+        source_note = root / "90_Staging" / "Sources" / "note_md.source.md"
+        content = source_note.read_text(encoding="utf-8")
+
+        passed = 'source_path: "note.md"' in content
+        return EvalResult(
+            "source_note_requires_source_path",
+            passed,
+            "source note provenance check",
+        )
+
+
+def eval_generated_note_requires_staged_status() -> EvalResult:
+    """Generated source notes should remain staged for review."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "note.md").write_text("# Note\n", encoding="utf-8")
+
+        ingest_inbox(inbox, root, mode="draft")
+        source_note = root / "90_Staging" / "Sources" / "note_md.source.md"
+        content = source_note.read_text(encoding="utf-8")
+
+        passed = 'status: "staged"' in content
+        return EvalResult(
+            "generated_note_requires_staged_status",
+            passed,
+            "staged status check",
+        )
+
+
+def eval_action_items_separated_from_claims() -> EvalResult:
+    """Action-like content should appear under Action items, not only Key claims."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "note.md").write_text("# Note\n\nTODO: call Sam\n", encoding="utf-8")
+
+        ingest_inbox(inbox, root, mode="draft")
+        source_note = root / "90_Staging" / "Sources" / "note_md.source.md"
+        content = source_note.read_text(encoding="utf-8")
+        result = review_note_quality(source_note)
+
+        passed = (
+            "TODO: call Sam" in content
+            and "## Action items" in content
+            and not any(
+                finding.check_id == "action_items_in_key_claims"
+                for finding in result.blocking_findings
+            )
+        )
+        return EvalResult(
+            "action_items_separated_from_claims",
+            passed,
+            "action separation check",
+        )
+
+
+def eval_deterministic_summary_not_overclaimed() -> EvalResult:
+    """Deterministic source-note placeholders should stay honest."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "note.md").write_text("# Note\n", encoding="utf-8")
+
+        ingest_inbox(inbox, root, mode="draft")
+        source_note = root / "90_Staging" / "Sources" / "note_md.source.md"
+        content = source_note.read_text(encoding="utf-8")
+        result = review_note_quality(source_note)
+
+        passed = (
+            "No deterministic summary generated" in content
+            and not any(
+                finding.check_id == "summary_overclaims_semantic_extraction"
+                for finding in result.blocking_findings
+            )
+        )
+        return EvalResult(
+            "deterministic_summary_not_overclaimed",
+            passed,
+            "deterministic summary honesty check",
+        )
+
+
+def eval_note_quality_missing_source_is_blocking() -> EvalResult:
+    """Missing provenance should be a blocking note-quality finding."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        note = root / "missing_source.md"
+        note.write_text(
+            "---\n"
+            'type: "source"\n'
+            'status: "staged"\n'
+            "---\n\n"
+            "# Missing Source\n\n"
+            "## Summary\n\n"
+            "No deterministic summary generated in Phase 3.\n\n"
+            "## Key claims\n\n"
+            "No key claims extracted deterministically in Phase 3.\n\n"
+            "## Action items\n\n"
+            "No action items extracted deterministically.\n\n"
+            "## Open questions\n\n"
+            "No open questions extracted deterministically in Phase 3.\n\n"
+            "## Links\n\n",
+            encoding="utf-8",
+        )
+
+        result = review_note_quality(note)
+        passed = any(
+            finding.check_id == "missing_source_path"
+            for finding in result.blocking_findings
+        )
+        return EvalResult(
+            "note_quality_missing_source_is_blocking",
+            passed,
+            "missing source quality check",
+        )
+
+
+def eval_note_quality_links_are_suggestions() -> EvalResult:
+    """Missing wikilinks should remain suggestions rather than hard failures."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "note.md").write_text("# Note\n", encoding="utf-8")
+
+        ingest_inbox(inbox, root, mode="draft")
+        source_note = root / "90_Staging" / "Sources" / "note_md.source.md"
+        result = review_note_quality(source_note)
+
+        passed = result.passed and any(
+            suggestion.check_id == "missing_wikilinks" for suggestion in result.suggestions
+        )
+        return EvalResult(
+            "note_quality_links_are_suggestions",
+            passed,
+            "link suggestion quality check",
+        )
+
+
 EVAL_CASES: tuple[EvalCase, ...] = (
     eval_staging_only_default,
     eval_read_only_no_writes,
     eval_duplicate_ingest_unique_paths,
     eval_unsupported_files_reported,
     eval_validation_catches_broken_note,
+    eval_source_note_requires_source_path,
+    eval_generated_note_requires_staged_status,
+    eval_action_items_separated_from_claims,
+    eval_deterministic_summary_not_overclaimed,
+    eval_note_quality_missing_source_is_blocking,
+    eval_note_quality_links_are_suggestions,
 )
 
 

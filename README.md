@@ -2,13 +2,76 @@
 
 Safe, deterministic-first Obsidian knowledge-base tooling.
 
-This repository is the implementation workspace for an Obsidian Librarian Agent: a CLI-first assistant that converts raw Markdown/TXT inbox files into staged Obsidian notes, review reports, and later optional LLM-assisted extraction.
+This repository is the implementation workspace for an Obsidian Librarian Agent: a CLI-first assistant that converts raw Markdown/TXT inbox files into staged Obsidian notes, review reports, validation results, and later optional LLM-assisted extraction.
 
-## Current phase
+## Current status
 
-**Phase 0 — documentation cleanup.**
+The project has moved beyond documentation-only setup.
 
-The current goal is to separate planning, agent design, Codex instructions, skills, eval strategy, and references into a maintainable structure before runtime code is implemented.
+| Phase | Status | Notes |
+|---:|---|---|
+| 0 | Done | Documentation organization merged in PR #1. |
+| 1 | Done | Python package skeleton and CLI scaffold merged in PR #1. |
+| 2 | Draft PR #2 | Safe staged writer implemented; pending local/CI tests. |
+| 3 | Draft PR #2 | Deterministic Markdown/TXT ingest implemented; pending local/CI tests. |
+| 4 | Draft PR #2 | Staged-note validators implemented; pending local/CI tests. |
+| 5 | Draft PR #2 | Golden eval catalog and deterministic eval runner implemented; pending local/CI tests. |
+| 6+ | Planned | Second Brain reference intake, reusable skills refinement, optional LLM extraction, optional Agents SDK runtime. |
+
+## What works in the current draft branch
+
+Implemented commands:
+
+```bash
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft
+obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
+obsidian-librarian validate ./90_Staging
+python evals/run_evals.py
+```
+
+Implemented behavior:
+
+- scans inbox folders recursively;
+- reads Markdown and TXT files;
+- reports unsupported file extensions;
+- writes staged source notes under `90_Staging/`;
+- writes `review_report.md` under `90_Staging/`;
+- preserves raw source files;
+- refuses overwrite by default;
+- creates suffixed filenames for repeated ingest runs;
+- validates staged Markdown notes;
+- skips generated review reports during note validation;
+- runs deterministic golden evals without API keys, network access, or model calls.
+
+## Safety posture
+
+The current implementation intentionally avoids high-risk behavior:
+
+- no deletion behavior;
+- no autonomous real-vault mutation outside `90_Staging/`;
+- no overwrite by default;
+- no external services;
+- no LLM calls;
+- no PDF parsing;
+- no OCR;
+- no embeddings;
+- no Agents SDK runtime;
+- no Git operations from the tool itself.
+
+## Local setup
+
+```bash
+pip install -e ".[dev]"
+```
+
+## Local checks
+
+```bash
+pytest
+ruff check .
+python -m obsidian_librarian.cli --help
+python evals/run_evals.py
+```
 
 ## Documentation map
 
@@ -28,7 +91,7 @@ The current goal is to separate planning, agent design, Codex instructions, skil
 | Second Brain reference intake | `docs/70_second_brain_reference.md` |
 | Visual map | `docs/80_visual_map.md` |
 
-## Core rule
+## Core development rule
 
 Build small, safe, and reviewable:
 
@@ -38,6 +101,6 @@ Build small, safe, and reviewable:
 4. LLM extraction only after the deterministic core is safe;
 5. Agents SDK integration last.
 
-## Next implementation phase
+## Next step
 
-Create the Python package skeleton and minimal CLI help command without adding LLM calls, PDF parsing, embeddings, or Agents SDK runtime.
+Run the local checks or add CI for PR #2. Phase 6 should wait until the Second Brain reference material actually exists in the repository.

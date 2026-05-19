@@ -16,7 +16,8 @@ The project has moved beyond documentation-only setup.
 | 3 | Draft PR #2 | Deterministic Markdown/TXT ingest implemented; pending local/CI tests. |
 | 4 | Draft PR #2 | Staged-note validators implemented; pending local/CI tests. |
 | 5 | Draft PR #2 | Golden eval catalog and deterministic eval runner implemented; pending local/CI tests. |
-| 6+ | Planned | Second Brain reference intake, reusable skills refinement, optional LLM extraction, optional Agents SDK runtime. |
+| 6 | Done, pending review | SB_OS reference intake integrated as summaries, skill review criteria, and deterministic eval ideas; raw SB_OS source remains untracked. |
+| 7+ | Planned | Reusable skills refinement, optional LLM extraction, optional Agents SDK runtime. |
 
 ## What works in the current draft branch
 
@@ -103,4 +104,4 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-Run the local checks or add CI for PR #2. Phase 6 should wait until the Second Brain reference material actually exists in the repository.
+Lane B Phase 6 docs are ready for review. Rebase or merge this docs/reference branch after the PR #2 code/test lane is stable.

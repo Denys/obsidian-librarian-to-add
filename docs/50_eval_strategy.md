@@ -46,6 +46,22 @@ Example eval dimensions:
 - duplicate candidates flagged;
 - review report generated.
 
+## Phase 6 note-quality evals
+
+Second Brain reference intake adds deterministic note-quality signals. These should remain file-content checks, not model judgments.
+
+Candidate eval dimensions:
+
+- source notes include `source_path`;
+- generated notes keep `status: staged`;
+- source notes separate `Action items` from `Key claims`;
+- deterministic placeholder summaries are not presented as completed semantic summaries;
+- note-quality review flags missing source references as blocking findings;
+- missing links or weak actionability are review suggestions, not hard validation failures;
+- raw source files remain unchanged after ingest and review.
+
+These evals support staged review and retrieval quality without adding LLM calls, embeddings, PDF parsing, OCR, MCP, Agents SDK runtime, or real-vault mutation.
+
 ## Eval flywheel
 
 When a failure appears:

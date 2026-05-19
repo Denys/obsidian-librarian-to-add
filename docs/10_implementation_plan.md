@@ -10,7 +10,7 @@ flowchart TD
     P3[Phase 3<br/>Markdown/TXT ingest<br/>DONE - pending local tests]
     P4[Phase 4<br/>Schemas + validators<br/>DONE - pending local tests]
     P5[Phase 5<br/>Eval harness<br/>DONE - pending local tests]
-    P6[Phase 6<br/>Second Brain reference intake<br/>NEXT]
+    P6[Phase 6<br/>Second Brain reference intake<br/>DONE - pending review]
     P7[Phase 7<br/>Reusable Codex skills]
     P8[Phase 8<br/>Optional LLM extraction]
     P9[Phase 9<br/>Optional Agents SDK runtime]
@@ -28,7 +28,7 @@ flowchart TD
 | 3 | Done, pending local test run | Deterministic Markdown/TXT ingest, staged source notes, review report, parser/renderer tests added. |
 | 4 | Done, pending local test run | Staged-note validation, frontmatter checks, report-skipping behavior, and validation CLI added. |
 | 5 | Done, pending local test run | Golden eval catalog and deterministic eval runner added. |
-| 6 | Next | Second Brain reference intake, only after source material exists. |
+| 6 | Done, pending review | SB_OS source material inspected; principles, skill review criteria, and deterministic eval ideas integrated without committing raw source. |
 | 7+ | Planned | Reusable skills, optional LLM extraction, optional Agents SDK layers. |
 
 ## Phase 0 — Documentation organization
@@ -137,7 +137,21 @@ Acceptance criteria:
 
 ## Phase 6 — Second Brain reference intake
 
-Import or summarize the `5-Obsidian-Skills-to-Build-a-Second-Brain` material only when actual content exists in the reference repository.
+Reference intake is complete pending review.
+
+Deliverables:
+
+- `docs/70_second_brain_reference.md` summarizes the inspected SB_OS material;
+- `.agents/skills/second-brain-pattern-review/SKILL.md` defines deterministic review checks;
+- `docs/50_eval_strategy.md` records Phase 6 note-quality eval dimensions;
+- `evals/cases.yaml` catalogs deterministic Phase 6 eval ideas;
+- raw SB_OS source material remains local/reference-only and should not be committed by default.
+
+Acceptance criteria:
+
+- SB_OS source inventory is documented;
+- extracted principles map to staged review, provenance, note quality, actionability, retrieval, and link quality;
+- non-goals explicitly exclude LLM calls, embeddings, PDF parsing, OCR, MCP, Agents SDK runtime, scheduling, and vault mutation behavior.
 
 ## Phase 7+ — Advanced layers
 

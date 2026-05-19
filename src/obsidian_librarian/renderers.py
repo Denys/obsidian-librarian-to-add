@@ -8,7 +8,6 @@ from pathlib import Path
 
 from obsidian_librarian.models import SourceDocument
 
-
 _SAFE_PART_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 

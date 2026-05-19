@@ -11,7 +11,6 @@ from obsidian_librarian.ingest import ingest_inbox
 from obsidian_librarian.review_report import render_review_report
 from obsidian_librarian.validators import render_validation_summary, validate_path
 
-
 DESCRIPTION = "Safe deterministic-first Obsidian Librarian CLI."
 
 

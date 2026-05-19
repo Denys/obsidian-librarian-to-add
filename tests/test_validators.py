@@ -10,7 +10,6 @@ from obsidian_librarian.validators import (
     validate_path,
 )
 
-
 VALID_SOURCE_NOTE = """---
 type: \"source\"
 source_kind: \"markdown\"

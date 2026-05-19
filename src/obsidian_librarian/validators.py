@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 REQUIRED_FIELDS_BY_TYPE = {
     "source": ("type", "source_kind", "source_path", "status", "confidence"),
     "atomic": ("type", "source_path", "status", "confidence"),
@@ -95,7 +94,9 @@ def validate_note(path: Path) -> list[ValidationIssue]:
 
     note_type = frontmatter.get("type")
     if not note_type:
-        issues.append(ValidationIssue(path=path, message="Missing required frontmatter field: type"))
+        issues.append(
+            ValidationIssue(path=path, message="Missing required frontmatter field: type")
+        )
         return issues
 
     required_fields = REQUIRED_FIELDS_BY_TYPE.get(note_type)
@@ -106,12 +107,17 @@ def validate_note(path: Path) -> list[ValidationIssue]:
     for field_name in required_fields:
         if not frontmatter.get(field_name):
             issues.append(
-                ValidationIssue(path=path, message=f"Missing required frontmatter field: {field_name}")
+                ValidationIssue(
+                    path=path,
+                    message=f"Missing required frontmatter field: {field_name}",
+                )
             )
 
     for section in REQUIRED_SECTIONS_BY_TYPE.get(note_type, ()):  # optional by type
         if section not in content:
-            issues.append(ValidationIssue(path=path, message=f"Missing required section: {section}"))
+            issues.append(
+                ValidationIssue(path=path, message=f"Missing required section: {section}")
+            )
 
     if frontmatter.get("status") != "staged":
         issues.append(ValidationIssue(path=path, message="Generated note status must be staged"))
@@ -127,7 +133,9 @@ def parse_frontmatter(content: str) -> dict[str, str]:
         raise ValueError("Missing frontmatter opening delimiter")
 
     try:
-        closing_index = next(index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---")
+        closing_index = next(
+            index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---"
+        )
     except StopIteration as exc:
         raise ValueError("Missing frontmatter closing delimiter") from exc
 

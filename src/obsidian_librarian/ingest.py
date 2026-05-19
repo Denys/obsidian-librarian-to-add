@@ -11,7 +11,6 @@ from obsidian_librarian.renderers import render_source_note, staged_source_note_
 from obsidian_librarian.review_report import render_review_report
 from obsidian_librarian.vault import ObsidianVault
 
-
 VALID_INGEST_MODES = {"read-only", "draft"}
 
 

@@ -6,7 +6,6 @@ from pathlib import Path
 
 from obsidian_librarian.models import SkippedFile, SourceDocument
 
-
 SUPPORTED_EXTENSIONS = {
     ".md": "markdown",
     ".txt": "text",

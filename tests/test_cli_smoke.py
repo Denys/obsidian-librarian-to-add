@@ -42,7 +42,10 @@ def test_ingest_command_creates_staged_note_and_report(
     assert source.read_text(encoding="utf-8") == "# Test Note\n\nTODO: verify ingest\n"
 
 
-def test_ingest_read_only_writes_nothing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_ingest_read_only_writes_nothing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     inbox = tmp_path / "00_Inbox"
     inbox.mkdir()
     (inbox / "note.txt").write_text("Plain text note", encoding="utf-8")

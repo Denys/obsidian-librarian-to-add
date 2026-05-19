@@ -68,6 +68,26 @@ class ObsidianVault:
 
         return target
 
+    def next_available_staged_path(self, relative_path: str | Path) -> Path:
+        """Return a non-existing staged path derived from a requested relative path."""
+        requested = Path(relative_path)
+        target = self.resolve_staged_path(requested)
+
+        if not target.exists():
+            return target
+
+        parent = requested.parent
+        stem = requested.stem
+        suffix = requested.suffix
+
+        counter = 1
+        while True:
+            candidate_relative = parent / f"{stem}_{counter}{suffix}"
+            candidate = self.resolve_staged_path(candidate_relative)
+            if not candidate.exists():
+                return candidate
+            counter += 1
+
     def write_staged_text(
         self,
         relative_path: str | Path,
@@ -95,3 +115,15 @@ class ObsidianVault:
             overwritten=existed,
             message="staged file written" if not existed else "staged file overwritten",
         )
+
+    def write_staged_text_unique(
+        self,
+        relative_path: str | Path,
+        content: str,
+        *,
+        encoding: str = "utf-8",
+    ) -> StagedWriteResult:
+        """Write text to the first available staged path without overwriting."""
+        target = self.next_available_staged_path(relative_path)
+        relative_target = target.relative_to(self.staging_root)
+        return self.write_staged_text(relative_target, content, overwrite=False, encoding=encoding)

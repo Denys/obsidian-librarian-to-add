@@ -1,0 +1,26 @@
+# Golden eval cases for Obsidian Librarian
+
+- id: staging_only_default
+  phase: 5
+  purpose: Draft ingest writes generated material only under 90_Staging.
+  expected: staged source note and review report exist; raw source remains unchanged.
+
+- id: read_only_no_writes
+  phase: 5
+  purpose: Read-only ingest performs no filesystem writes.
+  expected: no 90_Staging directory is created.
+
+- id: duplicate_ingest_unique_paths
+  phase: 5
+  purpose: Repeated draft ingest does not overwrite prior staged notes or reports.
+  expected: second run creates suffixed files.
+
+- id: unsupported_files_reported
+  phase: 5
+  purpose: Unsupported extensions are reported instead of silently ignored.
+  expected: review report contains unsupported-extension warning.
+
+- id: validation_catches_broken_note
+  phase: 5
+  purpose: Validator catches malformed staged Markdown.
+  expected: validation fails with a frontmatter issue.

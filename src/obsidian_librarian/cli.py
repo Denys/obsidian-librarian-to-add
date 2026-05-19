@@ -1,15 +1,14 @@
-"""Command-line interface for Obsidian Librarian Agent.
-
-Phase 1 intentionally provides only a safe CLI skeleton. Runtime ingestion is added in later
-phases after staged-write safety is implemented.
-"""
+"""Command-line interface for Obsidian Librarian Agent."""
 
 from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from pathlib import Path
 
 from obsidian_librarian import __version__
+from obsidian_librarian.ingest import ingest_inbox
+from obsidian_librarian.review_report import render_review_report
 
 
 DESCRIPTION = "Safe deterministic-first Obsidian Librarian CLI."
@@ -31,22 +30,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     ingest = subparsers.add_parser(
         "ingest",
-        help="Placeholder for future Markdown/TXT ingest.",
+        help="Ingest Markdown/TXT files into staged Obsidian notes.",
     )
     ingest.add_argument(
         "inbox",
-        nargs="?",
-        help="Inbox directory to process in a later phase.",
+        help="Inbox directory containing Markdown/TXT source files.",
     )
     ingest.add_argument(
         "--vault",
-        help="Vault root path. Runtime behavior is not implemented in Phase 1.",
+        required=True,
+        help="Vault root path. Staged outputs are written under its 90_Staging directory.",
     )
     ingest.add_argument(
         "--mode",
         choices=("read-only", "draft"),
         default="draft",
-        help="Planned action mode. Phase 1 performs no writes.",
+        help="Action mode. read-only performs no writes; draft writes staged notes.",
     )
 
     validate = subparsers.add_parser(
@@ -81,9 +80,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.print_help()
         return 0
 
+    if args.command == "ingest":
+        return run_ingest_command(args)
+
     print(
-        f"Command '{args.command}' is registered, but runtime behavior is not implemented in Phase 1."
+        f"Command '{args.command}' is registered, but runtime behavior is not implemented yet."
     )
+    return 0
+
+
+def run_ingest_command(args: argparse.Namespace) -> int:
+    """Run the ingest command and print a compact summary."""
+    try:
+        result = ingest_inbox(Path(args.inbox), Path(args.vault), mode=args.mode)
+    except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return 2
+
+    print(render_review_report(result))
+    if result.report_path is not None:
+        print(f"\nReview report written to: {result.report_path}")
     return 0
 
 

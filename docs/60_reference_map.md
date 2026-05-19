@@ -23,7 +23,7 @@ Reference material informs design. It must not override explicit repository safe
 | Practical Agent Guide | Partially | Used for agent design principles. |
 | Codex docs | Partially | Used for `AGENTS.md`, planning loop, and skills organization. |
 | Agents SDK docs | Deferred | Runtime integration is a later phase. |
-| Second Brain material | Deferred | Awaiting actual content in the reference repository. |
+| Second Brain material | Yes, reference-only | SB_OS material inspected in Phase 6; raw source stays local/untracked and informs summaries, skill review criteria, and deterministic eval ideas only. |
 
 ## Future update rule
 

@@ -24,3 +24,33 @@
   phase: 5
   purpose: Validator catches malformed staged Markdown.
   expected: validation fails with a frontmatter issue.
+
+- id: source_note_requires_source_path
+  phase: 6
+  purpose: Generated source notes preserve provenance for later review.
+  expected: source note frontmatter contains source_path.
+
+- id: generated_note_requires_staged_status
+  phase: 6
+  purpose: Generated notes remain reviewable before any vault promotion.
+  expected: "generated note frontmatter contains status: staged."
+
+- id: action_items_separated_from_claims
+  phase: 6
+  purpose: Action-like source content is not collapsed into factual claims.
+  expected: action cues appear under Action items, not only under Key claims.
+
+- id: deterministic_summary_not_overclaimed
+  phase: 6
+  purpose: Deterministic placeholder summaries do not pretend to be semantic extraction.
+  expected: placeholder summary remains explicitly review/deferred oriented.
+
+- id: note_quality_missing_source_is_blocking
+  phase: 6
+  purpose: Second Brain review treats missing provenance as a hard finding.
+  expected: review output flags missing source reference as blocking.
+
+- id: note_quality_links_are_suggestions
+  phase: 6
+  purpose: Weak links or missing actionability remain review suggestions, not hard runtime failures.
+  expected: review output labels link/actionability gaps as suggestions.

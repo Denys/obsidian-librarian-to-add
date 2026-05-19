@@ -7,8 +7,8 @@ flowchart TD
     P0[Phase 0<br/>Documentation organization<br/>DONE]
     P1[Phase 1<br/>Python package skeleton<br/>DONE]
     P2[Phase 2<br/>Safe staged writer<br/>DONE - pending local tests]
-    P3[Phase 3<br/>Markdown/TXT ingest<br/>NEXT]
-    P4[Phase 4<br/>Schemas + templates + validators]
+    P3[Phase 3<br/>Markdown/TXT ingest<br/>DONE - pending local tests]
+    P4[Phase 4<br/>Schemas + templates + validators<br/>NEXT]
     P5[Phase 5<br/>Review report + eval harness]
     P6[Phase 6<br/>Second Brain reference intake]
     P7[Phase 7<br/>Reusable Codex skills]
@@ -25,8 +25,9 @@ flowchart TD
 | 0 | Done | Documentation organized. |
 | 1 | Done | Python package skeleton and safe CLI placeholders added. |
 | 2 | Done, pending local test run | Safe staged writer, path checks, no-overwrite behavior, and destructive-write regression tests added. |
-| 3 | Next | Markdown/TXT inbox ingest. |
-| 4+ | Planned | Validators, evals, Second Brain reference, optional LLM/Agents SDK layers. |
+| 3 | Done, pending local test run | Deterministic Markdown/TXT ingest, staged source notes, review report, parser/renderer tests added. |
+| 4 | Next | Formal schemas, templates, and validators. |
+| 5+ | Planned | Eval harness, Second Brain reference, optional LLM/Agents SDK layers. |
 
 ## Phase 0 — Documentation organization
 
@@ -59,6 +60,7 @@ Deliverables:
 - staging path enforcement;
 - overwrite refusal by default;
 - explicit overwrite support;
+- unique-path staged write helper;
 - path traversal tests;
 - raw-source preservation tests.
 
@@ -66,6 +68,7 @@ Acceptance criteria:
 
 - valid staged writes land under `90_Staging/`;
 - existing staged files are not overwritten by default;
+- duplicate generated files get unique names when requested;
 - absolute paths are refused;
 - parent traversal is refused;
 - raw source fixtures are not modified.
@@ -74,19 +77,23 @@ Acceptance criteria:
 
 Deliverables:
 
-- scan inbox;
-- parse `.md` and `.txt`;
-- report unsupported extensions;
-- generate staged source notes;
-- keep runtime deterministic.
-
-Planned files:
-
+- `src/obsidian_librarian/models.py`;
 - `src/obsidian_librarian/parser.py`;
 - `src/obsidian_librarian/renderers.py`;
 - `src/obsidian_librarian/review_report.py`;
+- `src/obsidian_librarian/ingest.py`;
 - CLI integration in `src/obsidian_librarian/cli.py`;
-- fixture-based ingest tests.
+- parser, renderer, CLI, and ingest tests.
+
+Acceptance criteria:
+
+- scan inbox recursively;
+- parse `.md` and `.txt` files;
+- report unsupported extensions;
+- generate staged source notes;
+- generate a staged `review_report.md`;
+- read-only mode performs no writes;
+- runtime remains deterministic.
 
 ## Phase 4 — Schemas, templates, validators
 
@@ -96,16 +103,17 @@ Deliverables:
 - atomic note schema;
 - action/open-question schema;
 - uncertainty entry schema;
-- frontmatter validation.
+- frontmatter validation;
+- validation CLI behavior.
 
 ## Phase 5 — Review report and eval harness
 
 Deliverables:
 
-- `review_report.md` for every ingest;
 - fixture vault;
 - golden eval cases;
-- pass/fail eval runner.
+- pass/fail eval runner;
+- safety and note-quality evals.
 
 ## Phase 6 — Second Brain reference intake
 

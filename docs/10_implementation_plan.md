@@ -4,10 +4,10 @@
 
 ```mermaid
 flowchart TD
-    P0[Phase 0<br/>Documentation organization]
-    P1[Phase 1<br/>Python package skeleton]
-    P2[Phase 2<br/>Safe staged writer]
-    P3[Phase 3<br/>Markdown/TXT ingest]
+    P0[Phase 0<br/>Documentation organization<br/>DONE]
+    P1[Phase 1<br/>Python package skeleton<br/>DONE]
+    P2[Phase 2<br/>Safe staged writer<br/>DONE - pending local tests]
+    P3[Phase 3<br/>Markdown/TXT ingest<br/>NEXT]
     P4[Phase 4<br/>Schemas + templates + validators]
     P5[Phase 5<br/>Review report + eval harness]
     P6[Phase 6<br/>Second Brain reference intake]
@@ -17,6 +17,16 @@ flowchart TD
 
     P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9
 ```
+
+## Status summary
+
+| Phase | Status | Notes |
+|---:|---|---|
+| 0 | Done | Documentation organized. |
+| 1 | Done | Python package skeleton and safe CLI placeholders added. |
+| 2 | Done, pending local test run | Safe staged writer, path checks, no-overwrite behavior, and destructive-write regression tests added. |
+| 3 | Next | Markdown/TXT inbox ingest. |
+| 4+ | Planned | Validators, evals, Second Brain reference, optional LLM/Agents SDK layers. |
 
 ## Phase 0 — Documentation organization
 
@@ -44,10 +54,21 @@ No LLM, no PDFs, no embeddings.
 
 Deliverables:
 
-- vault path adapter;
+- `src/obsidian_librarian/config.py`;
+- `src/obsidian_librarian/vault.py`;
 - staging path enforcement;
 - overwrite refusal by default;
-- path traversal tests.
+- explicit overwrite support;
+- path traversal tests;
+- raw-source preservation tests.
+
+Acceptance criteria:
+
+- valid staged writes land under `90_Staging/`;
+- existing staged files are not overwritten by default;
+- absolute paths are refused;
+- parent traversal is refused;
+- raw source fixtures are not modified.
 
 ## Phase 3 — Markdown/TXT ingest
 
@@ -56,7 +77,16 @@ Deliverables:
 - scan inbox;
 - parse `.md` and `.txt`;
 - report unsupported extensions;
-- generate staged source notes.
+- generate staged source notes;
+- keep runtime deterministic.
+
+Planned files:
+
+- `src/obsidian_librarian/parser.py`;
+- `src/obsidian_librarian/renderers.py`;
+- `src/obsidian_librarian/review_report.py`;
+- CLI integration in `src/obsidian_librarian/cli.py`;
+- fixture-based ingest tests.
 
 ## Phase 4 — Schemas, templates, validators
 
@@ -64,9 +94,9 @@ Deliverables:
 
 - source note schema;
 - atomic note schema;
-- TODO/open-question schema;
-- conflict entry schema;
-- YAML/frontmatter validation.
+- action/open-question schema;
+- uncertainty entry schema;
+- frontmatter validation.
 
 ## Phase 5 — Review report and eval harness
 

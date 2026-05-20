@@ -197,6 +197,7 @@ Acceptance criteria:
 - invalid path returns exit code `2`;
 - no LLM calls, embeddings, MCP, Agents SDK runtime, PDF/OCR, autonomous vault mutation, or deletion behavior are introduced.
 
+
 ## Phase 9-10 - Advanced layers
 
 Only after deterministic safety works:

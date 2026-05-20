@@ -197,9 +197,30 @@ Acceptance criteria:
 - invalid path returns exit code `2`;
 - no LLM calls, embeddings, MCP, Agents SDK runtime, PDF/OCR, autonomous vault mutation, or deletion behavior are introduced.
 
+## Phase 8.5 - CI and deterministic baseline hardening
+
+Goal: harden the deterministic baseline before any optional LLM extraction work.
+
+Deliverables:
+
+- add GitHub Actions CI at `.github/workflows/ci.yml`;
+- run deterministic checks on each push and pull request (`pytest`, `ruff`, CLI help, eval runner);
+- keep runtime deterministic and non-mutating.
+
+Acceptance criteria:
+
+- CI runs on pull requests and pushes to `main`;
+- `python -m pytest` passes in CI;
+- `python -m ruff check .` passes in CI;
+- `python -m obsidian_librarian.cli --help` passes in CI;
+- `python evals/run_evals.py` passes in CI.
+
+
 ## Phase 9-10 - Advanced layers
 
 Only after deterministic safety works:
 
 - Phase 9: add optional LLM extraction behind an explicit flag;
 - Phase 10: add optional Agents SDK runtime last.
+
+

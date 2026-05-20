@@ -22,7 +22,7 @@ The project has moved beyond documentation-only setup.
 | 9 | Planned | Optional LLM extraction. |
 | 10 | Planned | Optional Agents SDK runtime. |
 
-## What works in the current draft branch
+## What works on main
 
 Implemented commands:
 

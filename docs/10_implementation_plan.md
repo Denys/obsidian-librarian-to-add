@@ -197,6 +197,15 @@ Acceptance criteria:
 - invalid path returns exit code `2`;
 - no LLM calls, embeddings, MCP, Agents SDK runtime, PDF/OCR, autonomous vault mutation, or deletion behavior are introduced.
 
+
+## Phase 9-10 - Advanced layers
+
+Only after deterministic safety works:
+
+- Phase 9: add optional LLM extraction behind an explicit flag;
+- Phase 10: add optional Agents SDK runtime last.
+
+
 ## Phase 8.5 - CI and deterministic baseline hardening
 
 Goal: harden the deterministic baseline before any optional LLM extraction work.
@@ -214,13 +223,3 @@ Acceptance criteria:
 - `python -m ruff check .` passes in CI;
 - `python -m obsidian_librarian.cli --help` passes in CI;
 - `python evals/run_evals.py` passes in CI.
-
-
-## Phase 9-10 - Advanced layers
-
-Only after deterministic safety works:
-
-- Phase 9: add optional LLM extraction behind an explicit flag;
-- Phase 10: add optional Agents SDK runtime last.
-
-

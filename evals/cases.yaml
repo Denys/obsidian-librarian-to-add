@@ -59,3 +59,8 @@
   phase: 8
   purpose: CLI review-quality command returns blocking status for missing provenance.
   expected: review-quality exits with code 1 when source_path is missing.
+
+- id: enrich_mock_success
+  phase: 9
+  purpose: mock enrichment succeeds without network calls.
+  expected: enrich command exits 0 and writes staged enriched note.

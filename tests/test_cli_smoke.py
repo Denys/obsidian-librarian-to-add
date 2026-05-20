@@ -19,6 +19,7 @@ def test_main_without_args_prints_help(capsys: pytest.CaptureFixture[str]) -> No
     assert "ingest" in captured.out
     assert "validate" in captured.out
     assert "review-quality" in captured.out
+    assert "enrich" in captured.out
     assert "report" in captured.out
 
 

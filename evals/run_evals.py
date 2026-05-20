@@ -319,6 +319,31 @@ def eval_review_quality_cli_missing_source_blocking() -> EvalResult:
         )
 
 
+def eval_enrich_mock_success() -> EvalResult:
+    """Mock enrichment should succeed in draft mode with staged output."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "note.md").write_text("# Note\n", encoding="utf-8")
+        ingest_inbox(inbox, root, mode="draft")
+
+        exit_code = cli_main(
+            [
+                "enrich",
+                str(root / "90_Staging"),
+                "--vault",
+                str(root),
+                "--mode",
+                "draft",
+                "--extractor",
+                "mock",
+            ]
+        )
+        passed = exit_code == 0 and any((root / "90_Staging" / "Enriched").glob("*.md"))
+        return EvalResult("enrich_mock_success", passed, "mock enrich success check")
+
+
 EVAL_CASES: tuple[EvalCase, ...] = (
     eval_staging_only_default,
     eval_read_only_no_writes,
@@ -332,6 +357,7 @@ EVAL_CASES: tuple[EvalCase, ...] = (
     eval_note_quality_missing_source_is_blocking,
     eval_note_quality_links_are_suggestions,
     eval_review_quality_cli_missing_source_blocking,
+    eval_enrich_mock_success,
 )
 
 

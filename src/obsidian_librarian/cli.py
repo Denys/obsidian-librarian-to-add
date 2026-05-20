@@ -7,6 +7,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from obsidian_librarian import __version__
+from obsidian_librarian.enrich import enrich_path
+from obsidian_librarian.extractors import MockExtractor, OpenAIExtractor
 from obsidian_librarian.ingest import ingest_inbox
 from obsidian_librarian.note_quality import review_note_quality_path
 from obsidian_librarian.review_report import render_review_report
@@ -67,6 +69,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Markdown file or directory to review.",
     )
 
+    enrich = subparsers.add_parser(
+        "enrich",
+        help="Optionally enrich staged Markdown notes with deterministic mock or OpenAI extractor.",
+    )
+    enrich.add_argument("path", help="Staged Markdown file or directory to enrich.")
+    enrich.add_argument("--vault", default=".", help="Vault root path.")
+    enrich.add_argument("--mode", choices=("read-only", "draft"), default="read-only")
+    enrich.add_argument("--extractor", choices=("mock", "openai"), default="mock")
+    enrich.add_argument("--model", default="gpt-5.4-mini")
+
     report = subparsers.add_parser(
         "report",
         help="Placeholder for future review-report inspection.",
@@ -97,6 +109,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "review-quality":
         return run_review_quality_command(args)
+
+    if args.command == "enrich":
+        return run_enrich_command(args)
 
     print(
         f"Command '{args.command}' is registered, but runtime behavior is not implemented yet."
@@ -185,6 +200,39 @@ def run_review_quality_command(args: argparse.Namespace) -> int:
             print(f"- {skipped}")
 
     return 1 if blocking_count else 0
+
+
+def run_enrich_command(args: argparse.Namespace) -> int:
+    """Run optional staged-note enrichment command."""
+    extractor = MockExtractor() if args.extractor == "mock" else OpenAIExtractor(model=args.model)
+
+    try:
+        summary = enrich_path(
+            Path(args.path),
+            vault_root=Path(args.vault),
+            mode=args.mode,
+            extractor=extractor,
+            model=args.model if args.extractor == "openai" else None,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return 2
+
+    print("# Obsidian Librarian Enrichment")
+    print(f"Extractor: {summary.extractor}")
+    print(f"Mode: {summary.mode}")
+    print(f"Checked files: {len(summary.checked_files)}")
+    print(f"Skipped files: {len(summary.skipped_files)}")
+    print(f"Outputs: {len(summary.outputs)}")
+    print(f"Failures: {len(summary.failures)}")
+
+    if summary.failures:
+        print("\n## Failures")
+        for failure in summary.failures:
+            print(f"- {failure.source_path} - {failure.message}")
+        return 1
+
+    return 0
 
 
 if __name__ == "__main__":

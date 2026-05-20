@@ -54,3 +54,8 @@
   phase: 6
   purpose: Weak links or missing actionability remain review suggestions, not hard runtime failures.
   expected: review output labels link/actionability gaps as suggestions.
+
+- id: review_quality_cli_missing_source_blocking
+  phase: 8
+  purpose: CLI review-quality command returns blocking status for missing provenance.
+  expected: review-quality exits with code 1 when source_path is missing.

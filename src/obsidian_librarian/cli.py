@@ -8,6 +8,7 @@ from pathlib import Path
 
 from obsidian_librarian import __version__
 from obsidian_librarian.ingest import ingest_inbox
+from obsidian_librarian.note_quality import review_note_quality_path
 from obsidian_librarian.review_report import render_review_report
 from obsidian_librarian.validators import render_validation_summary, validate_path
 
@@ -57,6 +58,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Markdown file or directory to validate.",
     )
 
+    review_quality = subparsers.add_parser(
+        "review-quality",
+        help="Run deterministic note-quality checks for staged Markdown notes.",
+    )
+    review_quality.add_argument(
+        "path",
+        help="Markdown file or directory to review.",
+    )
+
     report = subparsers.add_parser(
         "report",
         help="Placeholder for future review-report inspection.",
@@ -84,6 +94,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "validate":
         return run_validate_command(args)
+
+    if args.command == "review-quality":
+        return run_review_quality_command(args)
 
     print(
         f"Command '{args.command}' is registered, but runtime behavior is not implemented yet."
@@ -115,6 +128,63 @@ def run_validate_command(args: argparse.Namespace) -> int:
 
     print(render_validation_summary(summary))
     return 0 if summary.passed else 1
+
+
+def run_review_quality_command(args: argparse.Namespace) -> int:
+    """Run deterministic note-quality review for a file or directory."""
+    path = Path(args.path)
+    if path.is_file() and path.suffix.lower() != ".md":
+        print(f"Error: review-quality only supports Markdown files, got: {path}")
+        return 2
+
+    try:
+        summary = review_note_quality_path(path)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return 2
+
+    if not summary.checked_files:
+        print(f"Error: no Markdown notes found to review under: {summary.root}")
+        return 2
+
+    blocking_count = len(summary.blocking_findings)
+    suggestion_count = len(summary.suggestions)
+    if blocking_count:
+        verdict = "fail"
+    elif suggestion_count:
+        verdict = "pass with suggestions"
+    else:
+        verdict = "pass"
+
+    print("# Obsidian Librarian Note Quality Review")
+    print(f"Verdict: {verdict}")
+    print(f"Checked files: {len(summary.checked_files)}")
+    print(f"Blocking findings: {blocking_count}")
+    print(f"Suggestions: {suggestion_count}")
+    print(f"Skipped files: {len(summary.skipped_files)}")
+
+    if blocking_count:
+        print("\n## Blocking findings")
+        for finding in summary.blocking_findings:
+            print(f"- {finding.path} - {finding.message}")
+    else:
+        print("\n## Blocking findings")
+        print("- None")
+
+    if suggestion_count:
+        print("\n## Suggestions")
+        for suggestion in summary.suggestions:
+            print(f"- {suggestion.path} - {suggestion.message}")
+    else:
+        print("\n## Suggestions")
+        print("- None")
+
+    if summary.skipped_files:
+        print("\n## Skipped files")
+        for skipped in summary.skipped_files:
+            print(f"- {skipped}")
+
+    return 1 if blocking_count else 0
 
 
 if __name__ == "__main__":

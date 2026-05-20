@@ -17,8 +17,10 @@ The project has moved beyond documentation-only setup.
 | 4 | Done, verified locally | Staged-note validators implemented and covered by tests/ruff. |
 | 5 | Done, verified locally | Golden eval catalog and deterministic eval runner implemented and passing locally. |
 | 6 | Done | SB_OS reference intake integrated as summaries, skill review criteria, and deterministic eval ideas; raw SB_OS source remains untracked. |
-| 7 | Active | Reusable skill refinement and deterministic note-quality eval implementation. |
-| 8+ | Planned | Optional LLM extraction and optional Agents SDK runtime. |
+| 7 | Done, verified locally | Reusable skill refinement and deterministic note-quality eval implementation. |
+| 8 | Done, verified locally | Deterministic note-quality CLI review command. |
+| 9 | Planned | Optional LLM extraction. |
+| 10 | Planned | Optional Agents SDK runtime. |
 
 ## What works in the current draft branch
 
@@ -28,6 +30,7 @@ Implemented commands:
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft
 obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
 obsidian-librarian validate ./90_Staging
+obsidian-librarian review-quality ./90_Staging
 python evals/run_evals.py
 ```
 
@@ -105,4 +108,4 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-Complete Phase 7 by refining reusable Codex skills, keeping note-quality checks deterministic, and implementing the cataloged Phase 6 quality evals.
+Phase 9 can add optional LLM extraction behind explicit flags while preserving the deterministic, staging-only safety baseline.

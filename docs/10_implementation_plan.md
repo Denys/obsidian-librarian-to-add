@@ -11,11 +11,12 @@ flowchart TD
     P4[Phase 4<br/>Schemas + validators<br/>DONE - verified locally]
     P5[Phase 5<br/>Eval harness<br/>DONE - verified locally]
     P6[Phase 6<br/>Second Brain reference intake<br/>DONE]
-    P7[Phase 7<br/>Reusable skills + note-quality evals<br/>ACTIVE]
-    P8[Phase 8<br/>Optional LLM extraction]
-    P9[Phase 9<br/>Optional Agents SDK runtime]
+    P7[Phase 7<br/>Reusable skills + note-quality evals<br/>DONE]
+    P8[Phase 8<br/>Deterministic note-quality CLI<br/>DONE]
+    P9[Phase 9<br/>Optional LLM extraction]
+    P10[Phase 10<br/>Optional Agents SDK runtime]
 
-    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9
+    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
 ```
 
 ## Status summary
@@ -29,8 +30,10 @@ flowchart TD
 | 4 | Done, verified locally | Staged-note validation, frontmatter checks, report-skipping behavior, and validation CLI pass locally. |
 | 5 | Done, verified locally | Golden eval catalog and deterministic eval runner pass locally. |
 | 6 | Done | SB_OS source material inspected; principles, skill review criteria, and deterministic eval ideas integrated without committing raw source. |
-| 7 | Active | Reusable skills are being normalized and Phase 6 note-quality evals are becoming executable. |
-| 8+ | Planned | Optional LLM extraction and optional Agents SDK layers. |
+| 7 | Done, verified locally | Reusable skills were normalized and Phase 6 note-quality evals were implemented. |
+| 8 | Done, verified locally | Deterministic `review-quality` CLI command exposes note-quality review for staged markdown files and directories. |
+| 9 | Planned | Optional LLM extraction layer (explicit opt-in only). |
+| 10 | Planned | Optional Agents SDK runtime layer. |
 
 ## Phase 0 — Documentation organization
 
@@ -176,9 +179,27 @@ Acceptance criteria:
 - SB_OS-derived skills are project-local only and split active review skills from deferred runtime planning skills;
 - no LLM calls, embeddings, MCP, PDF/OCR, Agents SDK runtime, autonomous vault promotion, or deletion behavior are introduced.
 
-## Phase 8+ - Advanced layers
+## Phase 8 - Deterministic note-quality CLI
+
+Goal: expose deterministic staged-note quality checks as a CLI command with no vault mutation.
+
+Deliverables:
+
+- `obsidian-librarian review-quality <path>` accepts a markdown file or directory (typically `90_Staging/`);
+- CLI output includes verdict, checked file count, blocking findings, suggestions, and skipped files;
+- exit codes: `0` for no blocking findings, `1` for blocking findings, `2` for invalid path/usage errors;
+- deterministic tests and eval coverage for blocking and suggestion behavior.
+
+Acceptance criteria:
+
+- command works for both single file and directory inputs;
+- suggestions do not force failure when no blocking findings exist;
+- invalid path returns exit code `2`;
+- no LLM calls, embeddings, MCP, Agents SDK runtime, PDF/OCR, autonomous vault mutation, or deletion behavior are introduced.
+
+## Phase 9-10 - Advanced layers
 
 Only after deterministic safety works:
 
-- add optional LLM extraction behind an explicit flag;
-- add Agents SDK runtime last.
+- Phase 9: add optional LLM extraction behind an explicit flag;
+- Phase 10: add optional Agents SDK runtime last.

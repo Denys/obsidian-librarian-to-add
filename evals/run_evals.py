@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 """Golden eval runner for Obsidian Librarian.
 
 The eval runner uses deterministic filesystem fixtures and does not require network access,
@@ -7,11 +8,22 @@ API keys, model calls, or a real Obsidian vault.
 from __future__ import annotations
 
 import argparse
+import io
+import sys
 import tempfile
 from collections.abc import Callable, Sequence
+from contextlib import redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = REPO_ROOT / "src"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
+from obsidian_librarian.cli import main as cli_main
 from obsidian_librarian.ingest import ingest_inbox
 from obsidian_librarian.note_quality import review_note_quality
 from obsidian_librarian.validators import validate_path
@@ -267,6 +279,71 @@ def eval_note_quality_links_are_suggestions() -> EvalResult:
         )
 
 
+def eval_review_quality_cli_missing_source_blocking() -> EvalResult:
+    """CLI review-quality should return blocking exit code for missing source_path."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        note = root / "missing_source.md"
+        note.write_text(
+            "---\n"
+            'type: "source"\n'
+            'status: "staged"\n'
+            "---\n\n"
+            "# Missing Source\n\n"
+            "## Summary\n\n"
+            "No deterministic summary generated in Phase 3.\n\n"
+            "## Key claims\n\n"
+            "No key claims extracted deterministically in Phase 3.\n\n"
+            "## Action items\n\n"
+            "No action items extracted deterministically.\n\n"
+            "## Open questions\n\n"
+            "No open questions extracted deterministically in Phase 3.\n\n"
+            "## Links\n\n",
+            encoding="utf-8",
+        )
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            exit_code = cli_main(["review-quality", str(note)])
+
+        rendered = output.getvalue()
+        passed = (
+            exit_code == 1
+            and "# Obsidian Librarian Note Quality Review" in rendered
+            and "Verdict: fail" in rendered
+        )
+        return EvalResult(
+            "review_quality_cli_missing_source_blocking",
+            passed,
+            "review-quality CLI blocking exit-code check",
+        )
+
+
+def eval_enrich_mock_success() -> EvalResult:
+    """Mock enrichment should succeed in draft mode with staged output."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "note.md").write_text("# Note\n", encoding="utf-8")
+        ingest_inbox(inbox, root, mode="draft")
+
+        exit_code = cli_main(
+            [
+                "enrich",
+                str(root / "90_Staging"),
+                "--vault",
+                str(root),
+                "--mode",
+                "draft",
+                "--extractor",
+                "mock",
+            ]
+        )
+        passed = exit_code == 0 and any((root / "90_Staging" / "Enriched").glob("*.md"))
+        return EvalResult("enrich_mock_success", passed, "mock enrich success check")
+
+
 EVAL_CASES: tuple[EvalCase, ...] = (
     eval_staging_only_default,
     eval_read_only_no_writes,
@@ -279,6 +356,8 @@ EVAL_CASES: tuple[EvalCase, ...] = (
     eval_deterministic_summary_not_overclaimed,
     eval_note_quality_missing_source_is_blocking,
     eval_note_quality_links_are_suggestions,
+    eval_review_quality_cli_missing_source_blocking,
+    eval_enrich_mock_success,
 )
 
 

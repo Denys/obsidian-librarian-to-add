@@ -164,7 +164,7 @@ def run_validate_command(args: argparse.Namespace) -> int:
     """Run the validate command."""
     try:
         summary = validate_path(Path(args.path))
-    except (FileNotError, ValueError) as exc:
+    except (FileNotFoundError, ValueError) as exc:
         print(f"Error: {exc}")
         return 2
 

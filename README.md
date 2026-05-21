@@ -72,6 +72,20 @@ The current implementation intentionally avoids high-risk behavior:
 pip install -e ".[dev]"
 ```
 
+
+## Quick start (deterministic)
+
+```bash
+pip install -e ".[dev]"
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft
+obsidian-librarian validate ./90_Staging
+obsidian-librarian review-quality ./90_Staging
+obsidian-librarian index --vault . --scope vault-and-staging
+obsidian-librarian search "your topic" --vault . --scope vault-and-staging
+```
+
+For a detailed usage flow and PVplant-combo suggestions, see `docs/13_usage_manual.md`.
+
 ## Local checks
 
 ```bash
@@ -87,6 +101,7 @@ python evals/run_evals.py
 |---|---|
 | Overview | `docs/00_overview.md` |
 | Implementation planning | `docs/10_implementation_plan.md` |
+| Usage manual / quick start | `docs/13_usage_manual.md` |
 | Development stack | `docs/20_dev_stack.md` |
 | Agent definition | `docs/30_agent_definition.md` |
 | Tool contracts | `docs/31_tool_contracts.md` |

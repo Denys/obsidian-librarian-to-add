@@ -9,9 +9,11 @@ from pathlib import Path
 from obsidian_librarian import __version__
 from obsidian_librarian.enrich import enrich_path
 from obsidian_librarian.extractors import MockExtractor, OpenAIExtractor
+from obsidian_librarian.indexer import build_index
 from obsidian_librarian.ingest import ingest_inbox
 from obsidian_librarian.note_quality import review_note_quality_path
 from obsidian_librarian.review_report import render_review_report
+from obsidian_librarian.search import search_index
 from obsidian_librarian.validators import render_validation_summary, validate_path
 
 DESCRIPTION = "Safe deterministic-first Obsidian Librarian CLI."
@@ -79,6 +81,25 @@ def build_parser() -> argparse.ArgumentParser:
     enrich.add_argument("--extractor", choices=("mock", "openai"), default="mock")
     enrich.add_argument("--model", default="gpt-5.4-mini")
 
+    index = subparsers.add_parser("index", help="Build deterministic read-only vault index.")
+    index.add_argument("--vault", default=".", help="Vault root path.")
+    index.add_argument(
+        "--scope",
+        choices=("vault", "staging", "vault-and-staging"),
+        default="vault",
+        help="Search/index scope.",
+    )
+
+    search = subparsers.add_parser("search", help="Search deterministic vault index.")
+    search.add_argument("query", help="Search query")
+    search.add_argument("--vault", default=".", help="Vault root path.")
+    search.add_argument(
+        "--scope",
+        choices=("vault", "staging", "vault-and-staging"),
+        default="vault",
+        help="Search scope.",
+    )
+
     report = subparsers.add_parser(
         "report",
         help="Placeholder for future review-report inspection.",
@@ -112,6 +133,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "enrich":
         return run_enrich_command(args)
+
+    if args.command == "index":
+        return run_index_command(args)
+
+    if args.command == "search":
+        return run_search_command(args)
 
     print(
         f"Command '{args.command}' is registered, but runtime behavior is not implemented yet."
@@ -232,6 +259,39 @@ def run_enrich_command(args: argparse.Namespace) -> int:
             print(f"- {failure.source_path} - {failure.message}")
         return 1
 
+    return 0
+
+
+def run_index_command(args: argparse.Namespace) -> int:
+    try:
+        summary = build_index(Path(args.vault), args.scope)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return 2
+
+    print("# Obsidian Librarian Index")
+    print(f"Scope: {summary.scope}")
+    print(f"Scanned files: {summary.scanned_files}")
+    print(f"Indexed records: {len(summary.indexed_records)}")
+    return 0
+
+
+def run_search_command(args: argparse.Namespace) -> int:
+    try:
+        index = build_index(Path(args.vault), args.scope)
+        summary = search_index(index.indexed_records, args.query, args.scope)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return 2
+
+    print("# Obsidian Librarian Search")
+    print(f"Query: {summary.query}")
+    print(f"Scope: {summary.scope}")
+    print(f"Searched files: {summary.searched_files}")
+    print(f"Matched files: {summary.matched_files}")
+    for hit in summary.hits[:20]:
+        fields = ",".join(hit.matched_fields)
+        print(f"- {hit.path} (scope={hit.scope}, score={hit.score}, fields={fields})")
     return 0
 
 

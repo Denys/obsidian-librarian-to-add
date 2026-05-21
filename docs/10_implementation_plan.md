@@ -13,6 +13,8 @@ flowchart TD
     P6[Phase 6<br/>Second Brain reference intake<br/>DONE]
     P7[Phase 7<br/>Reusable skills + note-quality evals<br/>DONE]
     P8[Phase 8<br/>Deterministic note-quality CLI<br/>DONE]
+    P9[Phase 9<br/>Optional LLM enrichment + response hardening<br/>DONE - verified locally]
+    P10[Phase 10<br/>Vault-aware read-only librarian<br/>PLANNED]
     P9[Phase 9<br/>Optional LLM extraction]
     P10[Phase 10<br/>Optional Agents SDK runtime]
 
@@ -32,6 +34,8 @@ flowchart TD
 | 6 | Done | SB_OS source material inspected; principles, skill review criteria, and deterministic eval ideas integrated without committing raw source. |
 | 7 | Done, verified locally | Reusable skills were normalized and Phase 6 note-quality evals were implemented. |
 | 8 | Done, verified locally | Deterministic `review-quality` CLI command exposes note-quality review for staged markdown files and directories. |
+| 9 | Done, verified locally | Optional LLM enrichment command implemented with mock/openai extractors and response hardening safeguards. |
+| 10 | Planned | Vault-aware read-only librarian (index/search/ask roadmap staged in Phase 10.0). |
 | 9 | Planned | Optional LLM extraction layer (explicit opt-in only). |
 | 10 | Planned | Optional Agents SDK runtime layer. |
 
@@ -223,3 +227,16 @@ Acceptance criteria:
 - `python -m ruff check .` passes in CI;
 - `python -m obsidian_librarian.cli --help` passes in CI;
 - `python evals/run_evals.py` passes in CI.
+
+
+## Historical implementation context (Phases 8–10)
+
+This project moved from deterministic ingest/validation into staged review quality and optional enrichment in small slices:
+
+- **Phase 8** introduced deterministic `review-quality` CLI behavior with blocking vs suggestion semantics.
+- **Phase 8.5** added CI baseline gates (`pytest`, `ruff`, CLI help, eval runner) to prevent regressions before LLM-related features.
+- **Phase 9** added explicit opt-in enrichment with deterministic mock extraction by default and optional OpenAI structured extraction behind `OPENAI_API_KEY`.
+- **Phase 9.1a** hardened OpenAI response parsing for incomplete/refusal/shape-variance cases while preserving deterministic-safe failure behavior and no-write guarantees on extraction failures.
+- **Phase 10.0** added a roadmap/design-only plan for a vault-aware read-only librarian with strict scope/evidence reporting and deferred Agents SDK orchestration.
+
+Key invariant across these phases: deterministic operations remain the baseline; model-assisted paths are explicit opt-in and must fail safely without hidden vault mutation.

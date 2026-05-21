@@ -32,6 +32,8 @@ obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
 obsidian-librarian validate ./90_Staging
 obsidian-librarian review-quality ./90_Staging
 obsidian-librarian enrich ./90_Staging --extractor mock --mode read-only
+obsidian-librarian index --vault . --scope vault-and-staging
+obsidian-librarian search "daisy reverb" --vault . --scope vault-and-staging
 python evals/run_evals.py
 ```
 

@@ -112,3 +112,75 @@ Constraints:
 - Output still passes validators.
 - Failed model extraction falls back to deterministic extraction.
 ```
+
+
+## Prompt 7 — Phase 10.0 roadmap (docs only)
+
+```markdown
+Goal:
+Create a docs-only roadmap for Phase 10 vault-aware read-only librarian mode.
+
+Create:
+- docs/12_phase_10_vault_librarian_roadmap.md
+
+Constraints:
+- no code changes
+- no dependency changes
+- no OpenAI calls
+- no Agents SDK imports
+- no MCP/web/embeddings
+- no vault mutation
+
+Required sections:
+- executive summary
+- reality check
+- user scopes (vault/staging/vault-and-staging)
+- sub-phases 10.0-10.6 with acceptance criteria
+- deterministic retrieval strategy
+- answer contract
+- safety constraints
+- open questions
+- upgrade path
+```
+
+## Prompt 8 — Phase 10.1+10.2 deterministic index and search
+
+```markdown
+Goal:
+Implement deterministic read-only vault inventory and search commands.
+
+Add commands:
+- obsidian-librarian index --vault . --scope vault|staging|vault-and-staging
+- obsidian-librarian search "query" --vault . --scope vault|staging|vault-and-staging
+
+Constraints:
+- no ask command yet
+- no LLM calls
+- no Agents SDK
+- no MCP/web/embeddings
+- no writes
+
+Testing:
+- deterministic scope-separation tests
+- deterministic ordering tests
+- invalid scope/path behavior tests
+```
+
+## Prompt 9 — Phase 10.3 read-only ask with cited evidence
+
+```markdown
+Goal:
+Add read-only ask command that retrieves deterministically and optionally synthesizes cited answers.
+
+Requirements:
+- explicit searched scope reporting
+- citations for evidence used
+- confidence/coverage + gaps
+- insufficient-evidence safe failure path
+- no writes
+
+Constraints:
+- no Agents SDK yet
+- no MCP/web/embeddings
+- mock model path in tests
+```

@@ -15,6 +15,8 @@ flowchart TD
     P8[Phase 8<br/>Deterministic note-quality CLI<br/>DONE]
     P9[Phase 9<br/>Optional LLM enrichment + response hardening<br/>DONE - verified locally]
     P10[Phase 10<br/>Vault-aware read-only librarian<br/>PLANNED]
+    P9[Phase 9<br/>Optional LLM extraction]
+    P10[Phase 10<br/>Optional Agents SDK runtime]
 
     P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
 ```
@@ -34,6 +36,8 @@ flowchart TD
 | 8 | Done, verified locally | Deterministic `review-quality` CLI command exposes note-quality review for staged markdown files and directories. |
 | 9 | Done, verified locally | Optional LLM enrichment command implemented with mock/openai extractors and response hardening safeguards. |
 | 10 | Planned | Vault-aware read-only librarian (index/search/ask roadmap staged in Phase 10.0). |
+| 9 | Planned | Optional LLM extraction layer (explicit opt-in only). |
+| 10 | Planned | Optional Agents SDK runtime layer. |
 
 ## Phase 0 — Documentation organization
 
@@ -196,6 +200,7 @@ Acceptance criteria:
 - suggestions do not force failure when no blocking findings exist;
 - invalid path returns exit code `2`;
 - no LLM calls, embeddings, MCP, Agents SDK runtime, PDF/OCR, autonomous vault mutation, or deletion behavior are introduced.
+
 
 ## Phase 9-10 - Advanced layers
 

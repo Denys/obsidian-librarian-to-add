@@ -9,6 +9,7 @@ from pathlib import Path
 from obsidian_librarian import __version__
 from obsidian_librarian.enrich import enrich_path
 from obsidian_librarian.extractors import MockExtractor
+from obsidian_librarian.extractors import MockExtractor, OpenAIExtractor
 from obsidian_librarian.indexer import build_index
 from obsidian_librarian.ingest import ingest_inbox
 from obsidian_librarian.note_quality import review_note_quality_path
@@ -74,11 +75,14 @@ def build_parser() -> argparse.ArgumentParser:
     enrich = subparsers.add_parser(
         "enrich",
         help="Optionally enrich staged Markdown notes with deterministic mock extraction.",
+        help="Optionally enrich staged Markdown notes with deterministic mock or OpenAI extractor.",
     )
     enrich.add_argument("path", help="Staged Markdown file or directory to enrich.")
     enrich.add_argument("--vault", default=".", help="Vault root path.")
     enrich.add_argument("--mode", choices=("read-only", "draft"), default="read-only")
     enrich.add_argument("--extractor", choices=("mock",), default="mock")
+    enrich.add_argument("--extractor", choices=("mock", "openai"), default="mock")
+    enrich.add_argument("--model", default="gpt-5.4-mini")
 
     index = subparsers.add_parser("index", help="Build deterministic read-only vault index.")
     index.add_argument("--vault", default=".", help="Vault root path.")
@@ -231,6 +235,7 @@ def run_review_quality_command(args: argparse.Namespace) -> int:
 def run_enrich_command(args: argparse.Namespace) -> int:
     """Run optional staged-note enrichment command."""
     extractor = MockExtractor()
+    extractor = MockExtractor() if args.extractor == "mock" else OpenAIExtractor(model=args.model)
 
     try:
         summary = enrich_path(
@@ -239,6 +244,7 @@ def run_enrich_command(args: argparse.Namespace) -> int:
             mode=args.mode,
             extractor=extractor,
             model=None,
+            model=args.model if args.extractor == "openai" else None,
         )
     except (FileNotFoundError, ValueError) as exc:
         print(f"Error: {exc}")

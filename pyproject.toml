@@ -19,6 +19,9 @@ dev = [
   "pytest>=8.0",
   "ruff>=0.5"
 ]
+llm = [
+  "openai>=1.40.0"
+]
 
 [project.scripts]
 obsidian-librarian = "obsidian_librarian.cli:main"

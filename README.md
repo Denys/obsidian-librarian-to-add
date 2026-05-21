@@ -17,10 +17,12 @@ The project has moved beyond documentation-only setup.
 | 4 | Done, verified locally | Staged-note validators implemented and covered by tests/ruff. |
 | 5 | Done, verified locally | Golden eval catalog and deterministic eval runner implemented and passing locally. |
 | 6 | Done | SB_OS reference intake integrated as summaries, skill review criteria, and deterministic eval ideas; raw SB_OS source remains untracked. |
-| 7 | Active | Reusable skill refinement and deterministic note-quality eval implementation. |
-| 8+ | Planned | Optional LLM extraction and optional Agents SDK runtime. |
+| 7 | Done, verified locally | Reusable skill refinement and deterministic note-quality eval implementation. |
+| 8 | Done, verified locally | Deterministic note-quality CLI review command. |
+| 9 | Planned | Optional LLM extraction. |
+| 10 | Planned | Optional Agents SDK runtime. |
 
-## What works in the current draft branch
+## What works on main
 
 Implemented commands:
 
@@ -28,6 +30,10 @@ Implemented commands:
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft
 obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
 obsidian-librarian validate ./90_Staging
+obsidian-librarian review-quality ./90_Staging
+obsidian-librarian enrich ./90_Staging --extractor mock --mode read-only
+obsidian-librarian index --vault . --scope vault-and-staging
+obsidian-librarian search "daisy reverb" --vault . --scope vault-and-staging
 python evals/run_evals.py
 ```
 
@@ -105,4 +111,38 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-Complete Phase 7 by refining reusable Codex skills, keeping note-quality checks deterministic, and implementing the cataloged Phase 6 quality evals.
+Phase 9 can add optional LLM extraction behind explicit flags while preserving the deterministic, staging-only safety baseline.
+
+
+## Optional LLM enrichment (Phase 9)
+
+Deterministic ingest remains unchanged. Enrichment is explicit opt-in:
+
+```bash
+obsidian-librarian enrich ./90_Staging --extractor mock --mode draft
+obsidian-librarian enrich ./90_Staging --extractor openai --model gpt-5.4-mini --mode draft
+```
+
+For OpenAI enrichment, install optional dependency and set API key:
+
+```bash
+pip install -e "[dev,llm]"
+export OPENAI_API_KEY="sk-..."
+```
+
+PowerShell:
+
+```powershell
+setx OPENAI_API_KEY "your_api_key_here"
+```
+
+CI never runs live OpenAI calls; tests and evals use deterministic mock extraction only.
+
+
+## Phase 9 troubleshooting
+
+- Missing `OPENAI_API_KEY`: `--extractor openai` exits with a clear error.
+- Missing OpenAI SDK: install optional dependency via `pip install -e "[dev,llm]"`.
+- Incomplete response (for example `max_output_tokens`): enrich fails safely with reason.
+- Model refusal: enrich fails safely and does not write trusted enriched notes.
+- Invalid structured JSON: payload is rejected by schema validation and enrich fails safely.

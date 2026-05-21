@@ -17,10 +17,12 @@ The project has moved beyond documentation-only setup.
 | 4 | Done, verified locally | Staged-note validators implemented and covered by tests/ruff. |
 | 5 | Done, verified locally | Golden eval catalog and deterministic eval runner implemented and passing locally. |
 | 6 | Done | SB_OS reference intake integrated as summaries, skill review criteria, and deterministic eval ideas; raw SB_OS source remains untracked. |
-| 7 | Active | Reusable skill refinement and deterministic note-quality eval implementation. |
-| 8+ | Planned | Optional LLM extraction and optional Agents SDK runtime. |
+| 7 | Done, verified locally | Reusable skill refinement and deterministic note-quality eval implementation. |
+| 8 | Done, verified locally | Deterministic note-quality CLI review command. |
+| 9 | Planned | Optional LLM extraction. |
+| 10 | Planned | Optional Agents SDK runtime. |
 
-## What works in the current draft branch
+## What works on main
 
 Implemented commands:
 
@@ -28,6 +30,10 @@ Implemented commands:
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft
 obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
 obsidian-librarian validate ./90_Staging
+obsidian-librarian review-quality ./90_Staging
+obsidian-librarian enrich ./90_Staging --extractor mock --mode read-only
+obsidian-librarian index --vault . --scope vault-and-staging
+obsidian-librarian search "daisy reverb" --vault . --scope vault-and-staging
 python evals/run_evals.py
 ```
 
@@ -66,6 +72,20 @@ The current implementation intentionally avoids high-risk behavior:
 pip install -e ".[dev]"
 ```
 
+
+## Quick start (deterministic)
+
+```bash
+pip install -e ".[dev]"
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft
+obsidian-librarian validate ./90_Staging
+obsidian-librarian review-quality ./90_Staging
+obsidian-librarian index --vault . --scope vault-and-staging
+obsidian-librarian search "your topic" --vault . --scope vault-and-staging
+```
+
+For a detailed usage flow and PVplant-combo suggestions, see `docs/13_usage_manual.md`.
+
 ## Local checks
 
 ```bash
@@ -81,6 +101,7 @@ python evals/run_evals.py
 |---|---|
 | Overview | `docs/00_overview.md` |
 | Implementation planning | `docs/10_implementation_plan.md` |
+| Usage manual / quick start | `docs/13_usage_manual.md` |
 | Development stack | `docs/20_dev_stack.md` |
 | Agent definition | `docs/30_agent_definition.md` |
 | Tool contracts | `docs/31_tool_contracts.md` |
@@ -105,4 +126,4 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-Complete Phase 7 by refining reusable Codex skills, keeping note-quality checks deterministic, and implementing the cataloged Phase 6 quality evals.
+Phase 9 can add optional LLM extraction behind explicit flags while preserving the deterministic, staging-only safety baseline.

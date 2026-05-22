@@ -47,12 +47,7 @@ def discover_pdf_sources(inbox_root: str | Path) -> list[Path]:
 
 
 def classify_pdf_source(path: str | Path, *, source_root: str | Path | None = None) -> PdfManifest:
-    """Classify one PDF source and return a deterministic manifest.
-
-    The probe is intentionally shallow: it reads bytes, checks a few stable PDF markers,
-    computes a hash, estimates page count, and emits warnings for cases that should not
-    flow into trusted conversion yet.
-    """
+    """Classify one PDF source and return a deterministic manifest."""
     pdf_path = Path(path).expanduser().resolve(strict=False)
     source_path = _manifest_source_path(pdf_path, source_root)
 
@@ -159,12 +154,27 @@ def render_pdf_manifest_json(manifest: PdfManifest) -> str:
     return json.dumps(manifest_to_dict(manifest), indent=2, sort_keys=True) + "\n"
 
 
-def staged_pdf_manifest_path(manifest: PdfManifest) -> Path:
-    """Return the relative staged path for a PDF manifest sidecar."""
+def staged_pdf_root_path(manifest: PdfManifest) -> Path:
+    """Return the relative staged directory path for all artifacts from one PDF."""
     source = Path(manifest.source_path)
     parent_parts = [sanitize_path_part(part) for part in source.parent.parts]
     stem = sanitize_path_part(source.stem)
-    return Path("pdf", *parent_parts, f"{stem}.manifest.json")
+    return Path("pdf", *parent_parts, stem)
+
+
+def staged_pdf_manifest_path(manifest: PdfManifest) -> Path:
+    """Return the relative staged path for a PDF manifest sidecar."""
+    return staged_pdf_root_path(manifest) / "manifest.json"
+
+
+def staged_pdf_markdown_path(manifest: PdfManifest) -> Path:
+    """Return the relative staged path for Docling Markdown output."""
+    return staged_pdf_root_path(manifest) / "source.md"
+
+
+def staged_pdf_structured_json_path(manifest: PdfManifest) -> Path:
+    """Return the relative staged path for Docling structured JSON output."""
+    return staged_pdf_root_path(manifest) / "docling.json"
 
 
 def _manifest_source_path(pdf_path: Path, source_root: str | Path | None) -> str:

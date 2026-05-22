@@ -50,7 +50,8 @@ def pdf_digital_fixture() -> bytes:
         b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
         b"3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>\nendobj\n"
         b"4 0 obj\n<< /Length 80 >>\nstream\n"
-        b"BT /F1 12 Tf 72 720 Td (This is deterministic PDF text for Phase 11 evals) Tj ET\n"
+        b"BT /F1 12 Tf 72 720 Td "
+        b"(This is deterministic PDF text for Phase 11 evals) Tj ET\n"
         b"endstream\nendobj\n%%EOF\n"
     )
 
@@ -61,7 +62,10 @@ def pdf_scanned_fixture() -> bytes:
         b"%PDF-1.4\n"
         b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
         b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
-        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im1 4 0 R >> >> >>\nendobj\n"
+        b"3 0 obj\n"
+        b"<< /Type /Page /Parent 2 0 R "
+        b"/Resources << /XObject << /Im1 4 0 R >> >> >>\n"
+        b"endobj\n"
         b"4 0 obj\n<< /Type /XObject /Subtype /Image /Width 10 /Height 10 >>\nendobj\n"
         b"%%EOF\n"
     )

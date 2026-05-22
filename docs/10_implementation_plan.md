@@ -16,8 +16,9 @@ flowchart TD
     P8_5[Phase 8.5<br/>CI and deterministic baseline hardening<br/>DONE]
     P9[Phase 9<br/>Optional LLM enrichment + response hardening<br/>DONE - verified locally]
     P10[Phase 10<br/>Vault-aware read-only librarian<br/>PLANNED]
+    P11[Phase 11<br/>PDF compatibility<br/>PLANNED]
 
-    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P8_5 --> P9 --> P10
+    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P8_5 --> P9 --> P10 --> P11
 ```
 
 ## Status summary
@@ -36,6 +37,7 @@ flowchart TD
 | 8.5 | Done, verified in CI | GitHub Actions runs deterministic gates: pytest, ruff, CLI help, and eval runner. |
 | 9 | Done, verified locally | Optional enrichment command implemented with deterministic mock extraction, optional OpenAI extraction, and response-hardening safeguards. |
 | 10 | Planned | Vault-aware read-only librarian next layer: evidence-first ask/reporting over deterministic index/search; optional Agents SDK orchestration remains deferred. |
+| 11 | Planned | PDF compatibility via classifier/manifest first, Docling digital-PDF conversion second, tables/assets later, OCR deferred and explicit. |
 
 ## Phase 0 — Documentation organization
 
@@ -255,12 +257,53 @@ Acceptance criteria:
 - output reports searched scope, matched files, and evidence limitations;
 - optional Agents SDK runtime, if later added, reuses the same deterministic safety contracts.
 
+## Phase 11 - PDF compatibility
+
+Goal: add PDF-heavy knowledge-base compatibility without weakening deterministic safety, staging-only writes, or provenance requirements.
+
+Source plan: `docs/11_pdf_compatibility_plan.md`.
+
+Subphases:
+
+| Subphase | Status | Purpose |
+|---:|---|---|
+| 11.0 | Planned | Design/spec cleanup and documentation contracts. |
+| 11.1 | Planned | PDF discovery, classifier, and deterministic manifest. |
+| 11.2 | Planned | Docling digital-PDF conversion to staged Markdown/JSON. |
+| 11.3 | Planned | PDF provenance validators and extraction-quality gates. |
+| 11.4 | Planned | Table, figure, and asset sidecars. |
+| 11.5 | Deferred | Explicit OCR path for scanned PDFs. |
+
+Core constraints:
+
+- PDF intake must be explicit; `.pdf` remains unsupported in default Markdown/TXT ingest until the relevant phase is implemented.
+- Classifier/manifest behavior must land before full conversion.
+- Docling is the preferred first primary conversion engine for digital PDFs, isolated behind an optional dependency group.
+- OCR is deferred and must be explicitly enabled; there is no automatic OCR fallback.
+- Raw PDFs are immutable evidence inputs and are never modified.
+- Generated PDF notes, sidecars, manifests, tables, and assets remain under `90_Staging/`.
+
+Acceptance criteria for Phase 11.0:
+
+- PDF roadmap exists as a dedicated planning document;
+- README and documentation map reference the PDF plan;
+- tool contracts list planned PDF tools, outputs, refusal conditions, and risk controls;
+- eval strategy lists minimum PDF gates;
+- no parser implementation, dependency change, CLI flag, Docling import, OCR behavior, embedding behavior, or Agents SDK runtime is introduced.
+
+Acceptance criteria before Phase 11.1 starts:
+
+- manifest schema shape is accepted;
+- first PDF fixture set is chosen;
+- the lightweight probe strategy is selected;
+- implementation remains classifier/manifest-only with tests.
+
 ## Historical implementation context (Phases 8–10)
 
 This project moved from deterministic ingest/validation into staged review quality and optional enrichment in small slices:
 
 - **Phase 8** introduced deterministic `review-quality` CLI behavior with blocking vs suggestion semantics.
-- **Phase 8.5** added CI baseline gates (`pytest`, `ruff`, CLI help, eval runner) to prevent regressions before LLM-related features.
+- **Phase 8.5** added CI baseline gates (`pytest`, `ruff`, CLI help, eval runner`) to prevent regressions before LLM-related features.
 - **Phase 9** added explicit opt-in enrichment with deterministic mock extraction by default and optional OpenAI structured extraction behind `OPENAI_API_KEY`.
 - **Phase 9.1a** hardened OpenAI response parsing for incomplete/refusal/shape-variance cases while preserving deterministic-safe failure behavior and no-write guarantees on extraction failures.
 - **Phase 10.0** added a roadmap/design-only plan for a vault-aware read-only librarian with strict scope/evidence reporting and deferred Agents SDK orchestration.

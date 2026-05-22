@@ -37,6 +37,24 @@ def scanned_pdf_bytes() -> bytes:
     )
 
 
+def mixed_pdf_bytes() -> bytes:
+    return (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+        b"3 0 obj\n"
+        b"<< /Type /Page /Parent 2 0 R /Contents 4 0 R "
+        b"/Resources << /XObject << /Im1 5 0 R >> >> >>\n"
+        b"endobj\n"
+        b"4 0 obj\n<< /Length 80 >>\nstream\n"
+        b"BT /F1 12 Tf 72 720 Td "
+        b"(This mixed technical PDF has text and a figure reference) Tj ET\n"
+        b"endstream\nendobj\n"
+        b"5 0 obj\n<< /Type /XObject /Subtype /Image /Width 10 /Height 10 >>\nendobj\n"
+        b"%%EOF\n"
+    )
+
+
 def encrypted_pdf_bytes() -> bytes:
     return (
         b"%PDF-1.4\n"
@@ -70,6 +88,7 @@ def test_classify_digital_pdf_manifest_is_staged(tmp_path):
     manifest = classify_pdf_source(source, source_root=inbox)
     payload = json.loads(render_pdf_manifest_json(manifest))
 
+    assert manifest.schema_version == 1
     assert manifest.source_path == "manual.pdf"
     assert manifest.source_kind == "pdf"
     assert len(manifest.source_hash) == 64
@@ -79,9 +98,22 @@ def test_classify_digital_pdf_manifest_is_staged(tmp_path):
     assert manifest.text_density.total_chars > 20
     assert manifest.extraction.method == "classifier_probe"
     assert manifest.extraction.ocr_enabled is False
+    assert payload["schema_version"] == 1
     assert payload["source_hash"] == manifest.source_hash
     assert payload["text_density"]["empty_pages"] == 0
     assert source.read_bytes() == original
+
+
+def test_classify_mixed_pdf_needs_review(tmp_path):
+    source = tmp_path / "mixed.pdf"
+    source.write_bytes(mixed_pdf_bytes())
+
+    manifest = classify_pdf_source(source, source_root=tmp_path)
+
+    assert manifest.status == "needs_review"
+    assert manifest.classification == "mixed_pdf"
+    assert manifest.extraction.ocr_enabled is False
+    assert [warning.code for warning in manifest.extraction.warnings] == ["mixed_content"]
 
 
 def test_classify_scanned_pdf_is_skipped_for_deferred_ocr(tmp_path):

@@ -19,8 +19,10 @@ The project has moved beyond documentation-only setup.
 | 6 | Done | SB_OS reference intake integrated as summaries, skill review criteria, and deterministic eval ideas; raw SB_OS source remains untracked. |
 | 7 | Done, verified locally | Reusable skill refinement and deterministic note-quality eval implementation. |
 | 8 | Done, verified locally | Deterministic note-quality CLI review command. |
-| 9 | Planned | Optional LLM extraction. |
-| 10 | Planned | Optional Agents SDK runtime. |
+| 8.5 | Done, verified in CI | Deterministic CI gates for pytest, ruff, CLI help, and eval runner. |
+| 9 | Done, verified locally | Optional LLM enrichment with deterministic mock extraction by default and OpenAI extraction behind explicit flags. |
+| 10 | Planned | Vault-aware read-only librarian layer over deterministic index/search. |
+| 11 | Planned | PDF compatibility roadmap: classifier/manifest first, Docling digital-PDF conversion second, OCR deferred and opt-in. |
 
 ## What works on main
 
@@ -58,13 +60,15 @@ The current implementation intentionally avoids high-risk behavior:
 - no deletion behavior;
 - no autonomous real-vault mutation outside `90_Staging/`;
 - no overwrite by default;
-- no external services;
-- no LLM calls;
-- no PDF parsing;
+- no external services by default;
+- no LLM calls unless enrichment is explicitly requested;
+- no PDF parsing in the implemented ingest path;
 - no OCR;
 - no embeddings;
 - no Agents SDK runtime;
 - no Git operations from the tool itself.
+
+Planned PDF compatibility must preserve the same safety posture: raw PDFs are read-only evidence, generated notes remain staged, OCR is explicit opt-in, and Docling integration must live behind an optional PDF dependency path.
 
 ## Local setup
 
@@ -101,6 +105,7 @@ python evals/run_evals.py
 |---|---|
 | Overview | `docs/00_overview.md` |
 | Implementation planning | `docs/10_implementation_plan.md` |
+| PDF compatibility planning | `docs/11_pdf_compatibility_plan.md` |
 | Usage manual / quick start | `docs/13_usage_manual.md` |
 | Development stack | `docs/20_dev_stack.md` |
 | Agent definition | `docs/30_agent_definition.md` |
@@ -122,11 +127,12 @@ Build small, safe, and reviewable:
 2. staging-only writes;
 3. tests before expansion;
 4. LLM extraction only after the deterministic core is safe;
-5. Agents SDK integration last.
+5. PDF compatibility only after an explicit classifier/manifest contract is approved;
+6. Agents SDK integration last.
 
 ## Next step
 
-Phase 9 can add optional LLM extraction behind explicit flags while preserving the deterministic, staging-only safety baseline.
+Phase 11.1 can add PDF discovery, classification, and deterministic manifest generation before any Docling conversion. Phase 11.2 can then add Docling-based digital-PDF conversion behind an optional dependency group.
 
 
 ## Optional LLM enrichment (Phase 9)

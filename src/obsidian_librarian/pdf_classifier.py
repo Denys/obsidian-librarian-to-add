@@ -109,7 +109,8 @@ def classify_pdf_source(path: str | Path, *, source_root: str | Path | None = No
         warnings.append(
             PdfWarning(
                 "ocr_needed",
-                "PDF has image objects but no detectable text; OCR is deferred and must be explicit.",
+                "PDF has image objects but no detectable text; "
+                "OCR is deferred and must be explicit.",
             )
         )
         classification = "scanned_pdf"

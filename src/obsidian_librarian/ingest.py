@@ -7,6 +7,12 @@ from pathlib import Path
 from obsidian_librarian.config import LibrarianConfig
 from obsidian_librarian.models import GeneratedNote, IngestRunResult
 from obsidian_librarian.parser import parse_inbox
+from obsidian_librarian.pdf_classifier import (
+    classify_pdf_source,
+    discover_pdf_sources,
+    render_pdf_manifest_json,
+    staged_pdf_manifest_path,
+)
 from obsidian_librarian.renderers import render_source_note, staged_source_note_path
 from obsidian_librarian.review_report import render_review_report
 from obsidian_librarian.vault import ObsidianVault
@@ -19,11 +25,13 @@ def ingest_inbox(
     vault_root: str | Path,
     *,
     mode: str = "draft",
+    include_pdf: bool = False,
 ) -> IngestRunResult:
     """Ingest supported inbox files into staged Obsidian notes.
 
-    Phase 3 remains deterministic: it reads Markdown/TXT files, renders staged source notes,
-    and emits a review report. It does not call models or external services.
+    Markdown/TXT ingest remains deterministic. Phase 11.1 PDF support only discovers PDFs,
+    classifies them, and optionally writes manifest JSON sidecars. It does not convert PDFs
+    to Markdown, run OCR, call models, add embeddings, or modify source PDFs.
     """
     if mode not in VALID_INGEST_MODES:
         raise ValueError(f"Unsupported ingest mode: {mode}")
@@ -31,7 +39,13 @@ def ingest_inbox(
     inbox_path = Path(inbox_root).expanduser().resolve(strict=False)
     config = LibrarianConfig.from_paths(vault_root)
     vault = ObsidianVault(config)
-    documents, skipped = parse_inbox(inbox_path)
+    documents, skipped = parse_inbox(inbox_path, include_pdf=include_pdf)
+    pdf_manifests = []
+
+    if include_pdf:
+        pdf_manifests = [
+            classify_pdf_source(path, source_root=inbox_path) for path in discover_pdf_sources(inbox_path)
+        ]
 
     result = IngestRunResult(
         inbox_root=inbox_path,
@@ -39,7 +53,13 @@ def ingest_inbox(
         mode=mode,
         processed=documents,
         skipped=skipped,
+        pdf_manifests=pdf_manifests,
     )
+
+    if include_pdf:
+        result.warnings.append(
+            "PDF intake is Phase 11.1 classifier/manifest only; no PDF Markdown conversion or OCR was run."
+        )
 
     if mode == "read-only":
         result.warnings.append("Read-only mode: no staged notes or reports were written.")
@@ -56,6 +76,12 @@ def ingest_inbox(
                 note_type="source",
             )
         )
+
+    for manifest in pdf_manifests:
+        manifest_relative_path = staged_pdf_manifest_path(manifest)
+        manifest_content = render_pdf_manifest_json(manifest)
+        write_result = vault.write_staged_text_unique(manifest_relative_path, manifest_content)
+        result.pdf_manifest_paths.append(write_result.path)
 
     report_content = render_review_report(result)
     report_write = vault.write_staged_text_unique("review_report.md", report_content)

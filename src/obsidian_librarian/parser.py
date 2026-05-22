@@ -12,8 +12,16 @@ SUPPORTED_EXTENSIONS = {
 }
 
 
-def parse_inbox(inbox_root: str | Path) -> tuple[list[SourceDocument], list[SkippedFile]]:
-    """Parse supported source files from an inbox directory."""
+def parse_inbox(
+    inbox_root: str | Path,
+    *,
+    include_pdf: bool = False,
+) -> tuple[list[SourceDocument], list[SkippedFile]]:
+    """Parse supported source files from an inbox directory.
+
+    PDF files are intentionally not parsed here. When `include_pdf=True`, they are left for
+    the dedicated PDF classifier/manifest path instead of being reported as unsupported.
+    """
     root = Path(inbox_root).expanduser().resolve(strict=False)
 
     if not root.exists():
@@ -28,6 +36,8 @@ def parse_inbox(inbox_root: str | Path) -> tuple[list[SourceDocument], list[Skip
     for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
         source_kind = SUPPORTED_EXTENSIONS.get(path.suffix.lower())
         if source_kind is None:
+            if include_pdf and path.suffix.lower() == ".pdf":
+                continue
             skipped.append(SkippedFile(path=path, reason="unsupported extension"))
             continue
 

@@ -52,6 +52,14 @@ def build_parser() -> argparse.ArgumentParser:
         default="draft",
         help="Action mode. read-only performs no writes; draft writes staged notes.",
     )
+    ingest.add_argument(
+        "--include-pdf",
+        action="store_true",
+        help=(
+            "Phase 11.1: discover PDFs and write deterministic classifier manifests only. "
+            "This does not convert PDFs, run OCR, or extract tables/images."
+        ),
+    )
 
     validate = subparsers.add_parser(
         "validate",
@@ -140,16 +148,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "search":
         return run_search_command(args)
 
-    print(
-        f"Command '{args.command}' is registered, but runtime behavior is not implemented yet."
-    )
+    print(f"Command '{args.command}' is registered, but runtime behavior is not implemented yet.")
     return 0
 
 
 def run_ingest_command(args: argparse.Namespace) -> int:
     """Run the ingest command and print a compact summary."""
     try:
-        result = ingest_inbox(Path(args.inbox), Path(args.vault), mode=args.mode)
+        result = ingest_inbox(
+            Path(args.inbox),
+            Path(args.vault),
+            mode=args.mode,
+            include_pdf=args.include_pdf,
+        )
     except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
         print(f"Error: {exc}")
         return 2

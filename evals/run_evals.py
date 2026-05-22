@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import sys
 import tempfile
 from collections.abc import Callable, Sequence
@@ -39,6 +40,35 @@ class EvalResult:
 
 
 EvalCase = Callable[[], EvalResult]
+
+
+def pdf_digital_fixture() -> bytes:
+    """Return a tiny local digital-PDF-like fixture for deterministic tests/evals."""
+    return (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>\nendobj\n"
+        b"4 0 obj\n<< /Length 80 >>\nstream\n"
+        b"BT /F1 12 Tf 72 720 Td "
+        b"(This is deterministic PDF text for Phase 11 evals) Tj ET\n"
+        b"endstream\nendobj\n%%EOF\n"
+    )
+
+
+def pdf_scanned_fixture() -> bytes:
+    """Return a tiny image-only PDF-like fixture for OCR-deferred evals."""
+    return (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+        b"3 0 obj\n"
+        b"<< /Type /Page /Parent 2 0 R "
+        b"/Resources << /XObject << /Im1 4 0 R >> >> >>\n"
+        b"endobj\n"
+        b"4 0 obj\n<< /Type /XObject /Subtype /Image /Width 10 /Height 10 >>\nendobj\n"
+        b"%%EOF\n"
+    )
 
 
 def eval_staging_only_default() -> EvalResult:
@@ -344,6 +374,97 @@ def eval_enrich_mock_success() -> EvalResult:
         return EvalResult("enrich_mock_success", passed, "mock enrich success check")
 
 
+def eval_pdf_disabled_by_default() -> EvalResult:
+    """PDFs should remain unsupported unless explicitly enabled."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "manual.pdf").write_bytes(pdf_digital_fixture())
+
+        result = ingest_inbox(inbox, root, mode="read-only")
+
+        passed = (
+            result.pdf_manifests == []
+            and len(result.skipped) == 1
+            and result.skipped[0].reason == "unsupported extension"
+            and not (root / "90_Staging").exists()
+        )
+        return EvalResult("pdf_disabled_by_default", passed, "PDF disabled-by-default check")
+
+
+def eval_pdf_read_only_manifest_no_writes() -> EvalResult:
+    """Read-only PDF intake should classify without writes or source mutation."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        source = inbox / "manual.pdf"
+        original = pdf_digital_fixture()
+        source.write_bytes(original)
+
+        result = ingest_inbox(inbox, root, mode="read-only", include_pdf=True)
+
+        passed = (
+            len(result.pdf_manifests) == 1
+            and result.pdf_manifests[0].classification == "digital_pdf"
+            and result.pdf_manifest_paths == []
+            and source.read_bytes() == original
+            and not (root / "90_Staging").exists()
+        )
+        return EvalResult(
+            "pdf_read_only_manifest_no_writes",
+            passed,
+            "PDF read-only classifier no-write check",
+        )
+
+
+def eval_pdf_draft_manifest_written() -> EvalResult:
+    """Draft PDF intake should write manifest JSON but no converted source note."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "manual.pdf").write_bytes(pdf_digital_fixture())
+
+        result = ingest_inbox(inbox, root, mode="draft", include_pdf=True)
+        manifest_path = root / "90_Staging" / "pdf" / "manual.manifest.json"
+        report_path = root / "90_Staging" / "review_report.md"
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        report = report_path.read_text(encoding="utf-8")
+
+        passed = (
+            result.generated == []
+            and len(result.pdf_manifests) == 1
+            and manifest_path.exists()
+            and payload["classification"] == "digital_pdf"
+            and payload["extraction"]["method"] == "classifier_probe"
+            and "PDF manifests: 1" in report
+            and "No notes generated." in report
+        )
+        return EvalResult("pdf_draft_manifest_written", passed, "PDF draft manifest write check")
+
+
+def eval_pdf_scanned_deferred_ocr() -> EvalResult:
+    """Image-only PDFs should be classified as OCR-deferred."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        (inbox / "scan.pdf").write_bytes(pdf_scanned_fixture())
+
+        result = ingest_inbox(inbox, root, mode="read-only", include_pdf=True)
+        manifest = result.pdf_manifests[0]
+
+        passed = (
+            manifest.classification == "scanned_pdf"
+            and manifest.status == "skipped"
+            and manifest.extraction.ocr_enabled is False
+            and [warning.code for warning in manifest.extraction.warnings] == ["ocr_needed"]
+        )
+        return EvalResult("pdf_scanned_deferred_ocr", passed, "PDF OCR-deferred check")
+
+
 EVAL_CASES: tuple[EvalCase, ...] = (
     eval_staging_only_default,
     eval_read_only_no_writes,
@@ -358,6 +479,10 @@ EVAL_CASES: tuple[EvalCase, ...] = (
     eval_note_quality_links_are_suggestions,
     eval_review_quality_cli_missing_source_blocking,
     eval_enrich_mock_success,
+    eval_pdf_disabled_by_default,
+    eval_pdf_read_only_manifest_no_writes,
+    eval_pdf_draft_manifest_written,
+    eval_pdf_scanned_deferred_ocr,
 )
 
 

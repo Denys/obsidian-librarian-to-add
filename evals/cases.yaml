@@ -64,3 +64,23 @@
   phase: 9
   purpose: mock enrichment succeeds without network calls.
   expected: enrich command exits 0 and writes staged enriched note.
+
+- id: pdf_disabled_by_default
+  phase: 11.1
+  purpose: PDF files remain unsupported unless PDF intake is explicitly enabled.
+  expected: .pdf appears as unsupported extension and no PDF manifest is generated.
+
+- id: pdf_read_only_manifest_no_writes
+  phase: 11.1
+  purpose: Read-only PDF intake classifies PDFs without filesystem writes.
+  expected: PDF manifest exists in memory, source PDF is unchanged, and no 90_Staging directory is created.
+
+- id: pdf_draft_manifest_written
+  phase: 11.1
+  purpose: Draft PDF intake writes manifest JSON but does not convert PDF to Markdown.
+  expected: manifest JSON and review report exist; generated notes remain empty.
+
+- id: pdf_scanned_deferred_ocr
+  phase: 11.1
+  purpose: Low-text image PDFs are flagged as OCR-needed and skipped.
+  expected: classification is scanned_pdf, status is skipped, and ocr_enabled is false.

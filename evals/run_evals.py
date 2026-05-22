@@ -428,7 +428,7 @@ def eval_pdf_draft_manifest_written() -> EvalResult:
         (inbox / "manual.pdf").write_bytes(pdf_digital_fixture())
 
         result = ingest_inbox(inbox, root, mode="draft", include_pdf=True)
-        manifest_path = root / "90_Staging" / "pdf" / "manual.manifest.json"
+        manifest_path = root / "90_Staging" / "pdf" / "manual" / "manifest.json"
         report_path = root / "90_Staging" / "review_report.md"
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         report = report_path.read_text(encoding="utf-8")
@@ -438,6 +438,7 @@ def eval_pdf_draft_manifest_written() -> EvalResult:
             and len(result.pdf_manifests) == 1
             and manifest_path.exists()
             and payload["classification"] == "digital_pdf"
+            and payload["outputs"]["root"] == "pdf/manual"
             and payload["extraction"]["method"] == "classifier_probe"
             and "PDF manifests: 1" in report
             and "No notes generated." in report

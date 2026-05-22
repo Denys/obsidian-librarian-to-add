@@ -22,6 +22,7 @@ from obsidian_librarian.models import (
 )
 from obsidian_librarian.renderers import sanitize_path_part
 
+PDF_MANIFEST_SCHEMA_VERSION = 1
 PDF_PROBE_VERSION = "stdlib-pdf-probe-0.1"
 _LOW_TEXT_CHARS_PER_PAGE = 20
 _PAGE_RE = re.compile(rb"/Type\s*/Page\b")
@@ -123,7 +124,7 @@ def classify_pdf_source(path: str | Path, *, source_root: str | Path | None = No
             )
         )
         classification = "unknown" if image_count == 0 else "mixed_pdf"
-        status = "skipped"
+        status = "needs_review"
     elif image_count > 0:
         warnings.append(
             PdfWarning(
@@ -132,7 +133,7 @@ def classify_pdf_source(path: str | Path, *, source_root: str | Path | None = No
             )
         )
         classification = "mixed_pdf"
-        status = "staged"
+        status = "needs_review"
     else:
         classification = "digital_pdf"
         status = "staged"
@@ -250,6 +251,7 @@ def _manifest(
     warnings: tuple[PdfWarning, ...],
 ) -> PdfManifest:
     return PdfManifest(
+        schema_version=PDF_MANIFEST_SCHEMA_VERSION,
         source_path=source_path,
         source_hash=source_hash,
         source_kind="pdf",

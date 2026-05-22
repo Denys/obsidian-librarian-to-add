@@ -13,7 +13,8 @@ def digital_pdf_bytes() -> bytes:
         b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
         b"3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>\nendobj\n"
         b"4 0 obj\n<< /Length 80 >>\nstream\n"
-        b"BT /F1 12 Tf 72 720 Td (This is deterministic PDF text for Phase 11 tests) Tj ET\n"
+        b"BT /F1 12 Tf 72 720 Td "
+        b"(This is deterministic PDF text for Phase 11 tests) Tj ET\n"
         b"endstream\nendobj\n%%EOF\n"
     )
 
@@ -42,6 +43,7 @@ def test_include_pdf_read_only_classifies_without_writes(tmp_path):
 
     assert result.skipped == []
     assert len(result.pdf_manifests) == 1
+    assert result.pdf_manifests[0].schema_version == 1
     assert result.pdf_manifests[0].classification == "digital_pdf"
     assert result.pdf_manifest_paths == []
     assert source.read_bytes() == original
@@ -65,6 +67,7 @@ def test_include_pdf_draft_writes_manifest_and_report_only(tmp_path):
 
     manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     report = report_path.read_text(encoding="utf-8")
+    assert manifest_payload["schema_version"] == 1
     assert manifest_payload["source_kind"] == "pdf"
     assert manifest_payload["classification"] == "digital_pdf"
     assert manifest_payload["extraction"]["method"] == "classifier_probe"

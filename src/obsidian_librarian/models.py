@@ -93,6 +93,7 @@ class PdfProvenance:
 class PdfManifest:
     """Deterministic metadata about one PDF source and planned/generated artifacts."""
 
+    schema_version: int
     source_path: str
     source_hash: str
     source_kind: str

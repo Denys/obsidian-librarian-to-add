@@ -44,7 +44,8 @@ def ingest_inbox(
 
     if include_pdf:
         pdf_manifests = [
-            classify_pdf_source(path, source_root=inbox_path) for path in discover_pdf_sources(inbox_path)
+            classify_pdf_source(path, source_root=inbox_path)
+            for path in discover_pdf_sources(inbox_path)
         ]
 
     result = IngestRunResult(
@@ -58,7 +59,8 @@ def ingest_inbox(
 
     if include_pdf:
         result.warnings.append(
-            "PDF intake is Phase 11.1 classifier/manifest only; no PDF Markdown conversion or OCR was run."
+            "PDF intake is Phase 11.1 classifier/manifest only; "
+            "no PDF Markdown conversion or OCR was run."
         )
 
     if mode == "read-only":

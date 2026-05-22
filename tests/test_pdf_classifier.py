@@ -76,6 +76,7 @@ def test_classify_digital_pdf_manifest_is_staged(tmp_path):
     assert manifest.extraction.method == "classifier_probe"
     assert manifest.extraction.ocr_enabled is False
     assert payload["source_hash"] == manifest.source_hash
+    assert payload["text_density"]["empty_pages"] == 0
     assert source.read_bytes() == original
 
 
@@ -113,14 +114,6 @@ def test_classify_malformed_pdf_fails(tmp_path):
     assert manifest.classification == "malformed_pdf"
     assert manifest.page_count == 0
     assert [warning.code for warning in manifest.extraction.warnings] == ["invalid_header"]
-
-
-def test_staged_pdf_manifest_path_is_safe():
-    manifest = classify_pdf_source.__annotations__
-    assert "return" in manifest
-
-    source_manifest = classify_pdf_source
-    assert source_manifest is not None
 
 
 def test_staged_pdf_manifest_path_uses_pdf_namespace(tmp_path):

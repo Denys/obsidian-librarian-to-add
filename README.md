@@ -23,8 +23,8 @@ The project has moved beyond documentation-only setup.
 | 9 | Done, verified locally | Optional LLM enrichment with deterministic mock extraction by default and OpenAI extraction behind explicit flags. |
 | 10 | Planned | Vault-aware read-only librarian layer over deterministic index/search. |
 | 11.0 | Done | PDF compatibility roadmap and contracts merged in PR #10. |
-| 11.1 | Implemented on branch, pending CI | PDF discovery, stdlib classifier, deterministic manifests, review-report surface, tests/evals. |
-| 11.2 | Planned | Docling digital-PDF conversion behind optional dependency group. |
+| 11.1 | Done | PDF discovery, stdlib classifier, deterministic manifests, and review-report surface. |
+| 11.2 | Implemented on branch, pending CI | Optional Docling digital-PDF conversion to staged Markdown and structured JSON. |
 
 ## What works on main / current implementation branch
 
@@ -34,6 +34,7 @@ Implemented commands:
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft
 obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling
 obsidian-librarian validate ./90_Staging
 obsidian-librarian review-quality ./90_Staging
 obsidian-librarian enrich ./90_Staging --extractor mock --mode read-only
@@ -48,8 +49,9 @@ Implemented behavior:
 - reads Markdown and TXT files;
 - reports unsupported file extensions;
 - treats PDFs as unsupported unless `--include-pdf` is explicitly supplied;
-- with `--include-pdf`, classifies PDFs and writes deterministic manifest JSON sidecars only;
-- does not convert PDFs to Markdown in Phase 11.1;
+- with `--include-pdf`, classifies PDFs and writes deterministic manifest JSON sidecars;
+- with `--pdf-converter docling`, converts eligible PDFs to staged Markdown and structured JSON;
+- writes one staged PDF folder per source PDF under `90_Staging/pdf/<source-stem>/`;
 - writes staged source notes under `90_Staging/`;
 - writes PDF manifests under `90_Staging/pdf/` when PDF intake is enabled in draft mode;
 - writes `review_report.md` under `90_Staging/`;
@@ -69,13 +71,12 @@ The current implementation intentionally avoids high-risk behavior:
 - no overwrite by default;
 - no external services by default;
 - no LLM calls unless enrichment is explicitly requested;
-- no PDF-to-Markdown conversion in Phase 11.1;
 - no OCR;
 - no embeddings;
 - no Agents SDK runtime;
 - no Git operations from the tool itself.
 
-PDF compatibility preserves the same safety posture: raw PDFs are read-only evidence, generated notes/manifests remain staged, OCR is explicit opt-in and deferred, and Docling integration is deferred to Phase 11.2 behind an optional PDF dependency path.
+PDF compatibility preserves the same safety posture: raw PDFs are read-only evidence, generated notes/manifests remain staged, OCR is explicit opt-in and deferred, and Docling integration is behind an optional PDF dependency path.
 
 ## Local setup
 
@@ -83,6 +84,11 @@ PDF compatibility preserves the same safety posture: raw PDFs are read-only evid
 pip install -e ".[dev]"
 ```
 
+For Docling PDF conversion:
+
+```bash
+pip install -e ".[dev,pdf]"
+```
 
 ## Quick start (deterministic)
 
@@ -100,6 +106,12 @@ PDF classifier/manifest intake is explicit:
 ```bash
 obsidian-librarian ingest ./00_Inbox --vault . --mode read-only --include-pdf
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf
+```
+
+Docling conversion is also explicit:
+
+```bash
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling
 ```
 
 For a detailed usage flow and PVplant-combo suggestions, see `docs/13_usage_manual.md`.
@@ -146,7 +158,7 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-Phase 11.2 can add Docling-based digital-PDF conversion behind an optional dependency group after Phase 11.1 classifier/manifest behavior passes CI and the manifest schema is accepted.
+After Phase 11.2 passes CI and review, Phase 11.3 should add PDF provenance validation and extraction-quality gates before OCR or embeddings.
 
 
 ## Optional LLM enrichment (Phase 9)

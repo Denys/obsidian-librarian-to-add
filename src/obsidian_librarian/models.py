@@ -67,6 +67,7 @@ class PdfExtraction:
 class PdfOutputs:
     """Generated PDF artifact references recorded in a manifest."""
 
+    root: str | None = None
     markdown_note: str | None = None
     json_sidecar: str | None = None
     table_sidecars: tuple[str, ...] = ()

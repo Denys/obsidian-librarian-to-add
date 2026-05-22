@@ -98,8 +98,10 @@ def test_classify_digital_pdf_manifest_is_staged(tmp_path):
     assert manifest.text_density.total_chars > 20
     assert manifest.extraction.method == "classifier_probe"
     assert manifest.extraction.ocr_enabled is False
+    assert manifest.outputs.root == "pdf/manual"
     assert payload["schema_version"] == 1
     assert payload["source_hash"] == manifest.source_hash
+    assert payload["outputs"]["root"] == "pdf/manual"
     assert payload["text_density"]["empty_pages"] == 0
     assert source.read_bytes() == original
 
@@ -162,5 +164,5 @@ def test_staged_pdf_manifest_path_uses_pdf_namespace(tmp_path):
     manifest = classify_pdf_source(source, source_root=inbox)
 
     assert staged_pdf_manifest_path(manifest).as_posix() == (
-        "pdf/Vendor-Manuals/PV-Inverter-Manual.manifest.json"
+        "pdf/Vendor-Manuals/PV-Inverter-Manual/manifest.json"
     )

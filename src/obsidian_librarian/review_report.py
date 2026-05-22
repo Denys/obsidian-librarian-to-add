@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from obsidian_librarian.models import GeneratedNote, IngestRunResult, PdfManifest, SkippedFile, SourceDocument
+from obsidian_librarian.models import (
+    GeneratedNote,
+    IngestRunResult,
+    PdfManifest,
+    SkippedFile,
+    SourceDocument,
+)
 
 
 def render_review_report(result: IngestRunResult) -> str:

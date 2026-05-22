@@ -13,12 +13,11 @@ flowchart TD
     P6[Phase 6<br/>Second Brain reference intake<br/>DONE]
     P7[Phase 7<br/>Reusable skills + note-quality evals<br/>DONE]
     P8[Phase 8<br/>Deterministic note-quality CLI<br/>DONE]
+    P8_5[Phase 8.5<br/>CI and deterministic baseline hardening<br/>DONE]
     P9[Phase 9<br/>Optional LLM enrichment + response hardening<br/>DONE - verified locally]
     P10[Phase 10<br/>Vault-aware read-only librarian<br/>PLANNED]
-    P9[Phase 9<br/>Optional LLM extraction]
-    P10[Phase 10<br/>Optional Agents SDK runtime]
 
-    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
+    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P8_5 --> P9 --> P10
 ```
 
 ## Status summary
@@ -34,10 +33,9 @@ flowchart TD
 | 6 | Done | SB_OS source material inspected; principles, skill review criteria, and deterministic eval ideas integrated without committing raw source. |
 | 7 | Done, verified locally | Reusable skills were normalized and Phase 6 note-quality evals were implemented. |
 | 8 | Done, verified locally | Deterministic `review-quality` CLI command exposes note-quality review for staged markdown files and directories. |
-| 9 | Done, verified locally | Optional LLM enrichment command implemented with mock/openai extractors and response hardening safeguards. |
-| 10 | Planned | Vault-aware read-only librarian (index/search/ask roadmap staged in Phase 10.0). |
-| 9 | Planned | Optional LLM extraction layer (explicit opt-in only). |
-| 10 | Planned | Optional Agents SDK runtime layer. |
+| 8.5 | Done, verified in CI | GitHub Actions runs deterministic gates: pytest, ruff, CLI help, and eval runner. |
+| 9 | Done, verified locally | Optional enrichment command implemented with deterministic mock extraction, optional OpenAI extraction, and response-hardening safeguards. |
+| 10 | Planned | Vault-aware read-only librarian next layer: evidence-first ask/reporting over deterministic index/search; optional Agents SDK orchestration remains deferred. |
 
 ## Phase 0 — Documentation organization
 
@@ -201,15 +199,6 @@ Acceptance criteria:
 - invalid path returns exit code `2`;
 - no LLM calls, embeddings, MCP, Agents SDK runtime, PDF/OCR, autonomous vault mutation, or deletion behavior are introduced.
 
-
-## Phase 9-10 - Advanced layers
-
-Only after deterministic safety works:
-
-- Phase 9: add optional LLM extraction behind an explicit flag;
-- Phase 10: add optional Agents SDK runtime last.
-
-
 ## Phase 8.5 - CI and deterministic baseline hardening
 
 Goal: harden the deterministic baseline before any optional LLM extraction work.
@@ -228,6 +217,43 @@ Acceptance criteria:
 - `python -m obsidian_librarian.cli --help` passes in CI;
 - `python evals/run_evals.py` passes in CI.
 
+## Phase 9 - Optional LLM enrichment and response hardening
+
+Goal: add opt-in model-assisted enrichment while preserving deterministic behavior as the default path.
+
+Deliverables:
+
+- `obsidian-librarian enrich <path>` with deterministic `mock` extraction by default;
+- optional `openai` extractor behind explicit `--extractor openai` and `OPENAI_API_KEY` requirements;
+- extraction schema validation for structured payloads;
+- safe handling for incomplete responses, refusals, invalid JSON, and unexpected response shape;
+- tests/evals that exercise deterministic mock behavior without live API calls.
+
+Acceptance criteria:
+
+- mock enrichment works without API keys, network access, or model calls;
+- OpenAI enrichment is explicit opt-in and fails clearly when dependencies or credentials are missing;
+- malformed, incomplete, or refused model responses do not produce trusted enriched notes;
+- write-capable enrichment remains staging-only and respects `read-only` vs `draft` mode;
+- CI never depends on live OpenAI calls.
+
+## Phase 10 - Vault-aware read-only librarian
+
+Goal: evolve deterministic indexing/search into an evidence-first librarian layer before any orchestration runtime.
+
+Deliverables:
+
+- preserve deterministic `index` and `search` as the base retrieval substrate;
+- design or implement read-only ask/reporting behavior over vault and staging scopes;
+- include explicit evidence paths, matched fields, searched scope, and confidence/limitation reporting;
+- keep Agents SDK orchestration optional and deferred until read-only CLI contracts are stable.
+
+Acceptance criteria:
+
+- default behavior is read-only and non-mutating;
+- answers are grounded in indexed vault/staging evidence rather than inferred from missing context;
+- output reports searched scope, matched files, and evidence limitations;
+- optional Agents SDK runtime, if later added, reuses the same deterministic safety contracts.
 
 ## Historical implementation context (Phases 8–10)
 

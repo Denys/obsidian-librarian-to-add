@@ -260,7 +260,7 @@ def _manifest(
     text_density: PdfTextDensity,
     warnings: tuple[PdfWarning, ...],
 ) -> PdfManifest:
-    return PdfManifest(
+    manifest = PdfManifest(
         schema_version=PDF_MANIFEST_SCHEMA_VERSION,
         source_path=source_path,
         source_hash=source_hash,
@@ -277,4 +277,10 @@ def _manifest(
         ),
         outputs=PdfOutputs(),
         provenance=PdfProvenance(),
+    )
+    return PdfManifest(
+        **{
+            **manifest_to_dict(manifest),
+            "outputs": PdfOutputs(root=staged_pdf_root_path(manifest).as_posix()),
+        }
     )

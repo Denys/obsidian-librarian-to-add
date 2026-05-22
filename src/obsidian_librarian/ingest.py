@@ -48,10 +48,7 @@ def ingest_inbox(
     pdf_converter: str = "none",
     pdf_converter_func: PdfConverterFunc | None = None,
 ) -> IngestRunResult:
-    """Ingest supported inbox files into staged Obsidian notes.
-
-    Markdown/TXT ingest remains deterministic. PDF conversion is explicit and optional.
-    """
+    """Ingest supported inbox files into staged Obsidian notes."""
     if mode not in VALID_INGEST_MODES:
         raise ValueError(f"Unsupported ingest mode: {mode}")
     if pdf_converter not in VALID_PDF_CONVERTERS:
@@ -192,6 +189,7 @@ def mark_pdf_docling_converted(
             warnings=manifest.extraction.warnings,
         ),
         outputs=PdfOutputs(
+            root=manifest.outputs.root,
             markdown_note=markdown_relative.as_posix(),
             json_sidecar=json_relative.as_posix(),
         ),

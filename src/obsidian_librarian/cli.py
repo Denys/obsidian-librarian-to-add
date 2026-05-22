@@ -55,10 +55,13 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument(
         "--include-pdf",
         action="store_true",
-        help=(
-            "Phase 11.1: discover PDFs and write deterministic classifier manifests only. "
-            "This does not convert PDFs, run OCR, or extract tables/images."
-        ),
+        help="Discover PDFs and write classifier manifests.",
+    )
+    ingest.add_argument(
+        "--pdf-converter",
+        choices=("none", "docling"),
+        default="none",
+        help="Optional PDF converter. docling requires installing the [pdf] extra.",
     )
 
     validate = subparsers.add_parser(
@@ -160,6 +163,7 @@ def run_ingest_command(args: argparse.Namespace) -> int:
             Path(args.vault),
             mode=args.mode,
             include_pdf=args.include_pdf,
+            pdf_converter=args.pdf_converter,
         )
     except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
         print(f"Error: {exc}")

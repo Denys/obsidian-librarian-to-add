@@ -54,12 +54,16 @@ def _load_docling_converter() -> type[Any]:
     try:
         module = import_module("docling.document_converter")
     except ImportError as exc:
-        raise PdfDependencyError("Install optional PDF support with: pip install -e .[pdf]") from exc
+        raise PdfDependencyError(
+            "Install optional PDF support with: pip install -e .[pdf]"
+        ) from exc
 
     try:
         return module.DocumentConverter
     except AttributeError as exc:
-        raise PdfDependencyError("Installed docling package does not expose DocumentConverter") from exc
+        raise PdfDependencyError(
+            "Installed docling package does not expose DocumentConverter"
+        ) from exc
 
 
 def _docling_version() -> str:

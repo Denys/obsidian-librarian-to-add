@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from obsidian_librarian.models import GeneratedNote, IngestRunResult, SkippedFile, SourceDocument
+from obsidian_librarian.models import GeneratedNote, IngestRunResult, PdfManifest, SkippedFile, SourceDocument
 
 
 def render_review_report(result: IngestRunResult) -> str:
@@ -19,6 +19,7 @@ def render_review_report(result: IngestRunResult) -> str:
         f"- Inbox root: `{result.inbox_root}`",
         f"- Processed files: {len(result.processed)}",
         f"- Skipped files: {len(result.skipped)}",
+        f"- PDF manifests: {len(result.pdf_manifests)}",
         f"- Generated notes: {len(result.generated)}",
         "",
         "## Processed files",
@@ -28,6 +29,10 @@ def render_review_report(result: IngestRunResult) -> str:
         "## Skipped files",
         "",
         *render_skipped_files(result.skipped),
+        "",
+        "## PDF manifests",
+        "",
+        *render_pdf_manifests(result.pdf_manifests, result.pdf_manifest_paths),
         "",
         "## Generated notes",
         "",
@@ -47,7 +52,7 @@ def render_processed_files(documents: list[SourceDocument]) -> list[str]:
         return ["No files processed."]
 
     return [
-        f"- `{document.relative_path.as_posix()}` ({document.source_kind}) — {document.title}"
+        f"- `{document.relative_path.as_posix()}` ({document.source_kind}) - {document.title}"
         for document in documents
     ]
 
@@ -57,7 +62,25 @@ def render_skipped_files(skipped_files: list[SkippedFile]) -> list[str]:
     if not skipped_files:
         return ["No files skipped."]
 
-    return [f"- `{path_for_report(item.path)}` — {item.reason}" for item in skipped_files]
+    return [f"- `{path_for_report(item.path)}` - {item.reason}" for item in skipped_files]
+
+
+def render_pdf_manifests(manifests: list[PdfManifest], manifest_paths: list[Path]) -> list[str]:
+    """Render PDF manifest rows."""
+    if not manifests:
+        return ["No PDF manifests generated."]
+
+    rendered: list[str] = []
+    for index, manifest in enumerate(manifests):
+        manifest_path = manifest_paths[index] if index < len(manifest_paths) else None
+        output = f" manifest: `{path_for_report(manifest_path)}`" if manifest_path else ""
+        rendered.append(
+            f"- `{manifest.source_path}` - {manifest.classification}, "
+            f"status={manifest.status}, pages={manifest.page_count},{output}"
+        )
+        for warning in manifest.extraction.warnings:
+            rendered.append(f"  - warning `{warning.code}`: {warning.message}")
+    return rendered
 
 
 def render_generated_notes(notes: list[GeneratedNote]) -> list[str]:

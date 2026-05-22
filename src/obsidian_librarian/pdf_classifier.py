@@ -38,7 +38,11 @@ def discover_pdf_sources(inbox_root: str | Path) -> list[Path]:
     if not root.is_dir():
         raise NotADirectoryError(f"Inbox path is not a directory: {root}")
 
-    return sorted(path for path in root.rglob("*") if path.is_file() and path.suffix.lower() == ".pdf")
+    return sorted(
+        path
+        for path in root.rglob("*")
+        if path.is_file() and path.suffix.lower() == ".pdf"
+    )
 
 
 def classify_pdf_source(path: str | Path, *, source_root: str | Path | None = None) -> PdfManifest:

@@ -24,7 +24,8 @@ The project has moved beyond documentation-only setup.
 | 10 | Planned | Vault-aware read-only librarian layer over deterministic index/search. |
 | 11.0 | Done | PDF compatibility roadmap and contracts merged in PR #10. |
 | 11.1 | Done | PDF discovery, stdlib classifier, deterministic manifests, and review-report surface. |
-| 11.2 | Implemented on branch, pending CI | Optional Docling digital-PDF conversion to staged Markdown and structured JSON. |
+| 11.2 | Done | Optional Docling digital-PDF conversion to staged Markdown and structured JSON. |
+| 11.3a | Implemented on branch, pending CI | Deterministic structural validation for staged PDF manifests and artifacts. |
 
 ## What works on main / current implementation branch
 
@@ -52,6 +53,7 @@ Implemented behavior:
 - with `--include-pdf`, classifies PDFs and writes deterministic manifest JSON sidecars;
 - with `--pdf-converter docling`, converts eligible PDFs to staged Markdown and structured JSON;
 - writes one staged PDF folder per source PDF under `90_Staging/pdf/<source-stem>/`;
+- validates staged PDF manifests and claimed artifacts through the existing `validate` command;
 - writes staged source notes under `90_Staging/`;
 - writes PDF manifests under `90_Staging/pdf/` when PDF intake is enabled in draft mode;
 - writes `review_report.md` under `90_Staging/`;
@@ -158,7 +160,7 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-After Phase 11.2 passes CI and review, Phase 11.3 should add PDF provenance validation and extraction-quality gates before OCR or embeddings.
+After Phase 11.3a passes CI and review, continue with fixture-backed PDF acceptance gates and table/figure sidecar validation before OCR or embeddings.
 
 
 ## Optional LLM enrichment (Phase 9)

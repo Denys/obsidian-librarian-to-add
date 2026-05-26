@@ -150,6 +150,14 @@ def staged_pdf_structured_json_path(manifest: PdfManifest) -> Path:
     return staged_pdf_root_path(manifest) / "docling.json"
 
 
+def staged_pdf_tables_json_path(manifest: PdfManifest) -> Path:
+    return staged_pdf_root_path(manifest) / "tables.json"
+
+
+def staged_pdf_assets_dir_path(manifest: PdfManifest) -> Path:
+    return staged_pdf_root_path(manifest) / "assets"
+
+
 def _staged_pdf_root_for_source(source_path: str) -> Path:
     source = Path(source_path)
     parent_parts = [sanitize_path_part(part) for part in source.parent.parts]

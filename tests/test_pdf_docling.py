@@ -41,6 +41,44 @@ def test_convert_pdf_with_docling_uses_lazy_converter(monkeypatch, tmp_path):
     assert result.markdown.startswith("# Converted")
     assert '"pages": 1' in result.structured_json
     assert result.engine_version == "test-version"
+    assert result.tables_json is None
+
+
+def test_convert_pdf_with_docling_exports_table_sidecar_when_payload_has_tables(
+    monkeypatch,
+    tmp_path,
+):
+    class TableDocument:
+        def export_to_markdown(self):
+            return "# Converted\n\nElectrical table extracted."
+
+        def export_to_dict(self):
+            return {
+                "body": {
+                    "tables": [
+                        {"cells": [["voltage", "current"], ["30V", "5A"]]},
+                    ],
+                }
+            }
+
+    class TableResult:
+        document = TableDocument()
+
+    class TableConverter:
+        def convert(self, source):
+            return TableResult()
+
+    source = tmp_path / "fixture.pdf"
+    source.write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(pdf_docling, "_load_docling_converter", lambda: TableConverter)
+    monkeypatch.setattr(pdf_docling, "_docling_version", lambda: "test-version")
+
+    result = convert_pdf_with_docling(source)
+
+    assert result.tables_json is not None
+    assert '"schema_version": 1' in result.tables_json
+    assert '"source": "docling_structured_export"' in result.tables_json
+    assert '"path": "$.body.tables"' in result.tables_json
 
 
 def test_convert_pdf_with_docling_rejects_empty_markdown(monkeypatch, tmp_path):

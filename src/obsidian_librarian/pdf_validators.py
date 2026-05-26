@@ -111,6 +111,9 @@ def discover_pdf_artifact_dirs(path: Path) -> list[Path]:
 
     artifact_dirs: list[Path] = []
     for candidate in sorted(item for item in pdf_root.rglob("*") if item.is_dir()):
+        if _is_nested_inside_artifact_dir(candidate, pdf_root):
+            continue
+
         child_paths = list(candidate.iterdir())
         child_dirs = [child for child in child_paths if child.is_dir()]
         has_artifact = any(
@@ -122,6 +125,16 @@ def discover_pdf_artifact_dirs(path: Path) -> list[Path]:
             artifact_dirs.append(candidate)
 
     return artifact_dirs
+
+
+def _is_nested_inside_artifact_dir(candidate: Path, pdf_root: Path) -> bool:
+    """Return true when a directory is inside an already discovered artifact dir."""
+    for parent in candidate.parents:
+        if parent == pdf_root:
+            return False
+        if (parent / "manifest.json").exists():
+            return True
+    return False
 
 
 def validate_pdf_manifest(

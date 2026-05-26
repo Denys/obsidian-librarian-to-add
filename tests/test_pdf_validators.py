@@ -177,6 +177,27 @@ def test_claimed_table_sidecars_and_asset_dirs_must_exist(tmp_path: Path) -> Non
     assert "outputs.asset_dir does not exist as a directory" in messages
 
 
+def test_existing_asset_dir_is_not_treated_as_separate_pdf_artifact_dir(
+    tmp_path: Path,
+) -> None:
+    staging = tmp_path / "90_Staging"
+    asset_dir = staging / "pdf" / "manual" / "assets"
+    asset_dir.mkdir(parents=True)
+    (asset_dir / "figure.png").write_bytes(b"fake-png")
+    make_manifest(
+        staging,
+        outputs={
+            "root": "pdf/manual",
+            "asset_dir": "pdf/manual/assets",
+        },
+    )
+
+    summary = validate_pdf_staging_path(staging)
+
+    assert summary.passed is True
+    assert [path.name for path in summary.checked_artifact_dirs] == ["manual"]
+
+
 def test_pdf_artifact_directory_without_manifest_fails(tmp_path: Path) -> None:
     staging = tmp_path / "90_Staging"
     root = staging / "pdf" / "manual"

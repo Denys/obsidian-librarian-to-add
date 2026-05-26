@@ -25,7 +25,8 @@ The project has moved beyond documentation-only setup.
 | 11.0 | Done | PDF compatibility roadmap and contracts merged in PR #10. |
 | 11.1 | Done | PDF discovery, stdlib classifier, deterministic manifests, and review-report surface. |
 | 11.2 | Done | Optional Docling digital-PDF conversion to staged Markdown and structured JSON. |
-| 11.3a | Implemented on branch, pending CI | Deterministic structural validation for staged PDF manifests and artifacts. |
+| 11.3a | Done | Deterministic structural validation for staged PDF manifests and artifacts. |
+| 11.3b / 11.4a | Implemented on branch, pending CI | Fixture-backed PDF acceptance gates plus structural table/assets sidecar preservation. |
 
 ## What works on main / current implementation branch
 
@@ -52,6 +53,8 @@ Implemented behavior:
 - treats PDFs as unsupported unless `--include-pdf` is explicitly supplied;
 - with `--include-pdf`, classifies PDFs and writes deterministic manifest JSON sidecars;
 - with `--pdf-converter docling`, converts eligible PDFs to staged Markdown and structured JSON;
+- preserves table-like Docling structures as staged `tables.json` sidecars when present;
+- writes Docling-exported assets under staged `assets/` folders when present;
 - writes one staged PDF folder per source PDF under `90_Staging/pdf/<source-stem>/`;
 - validates staged PDF manifests and claimed artifacts through the existing `validate` command;
 - writes staged source notes under `90_Staging/`;
@@ -121,8 +124,8 @@ For a detailed usage flow and PVplant-combo suggestions, see `docs/13_usage_manu
 ## Local checks
 
 ```bash
-pytest
-ruff check .
+python -m pytest
+python -m ruff check .
 python -m obsidian_librarian.cli --help
 python evals/run_evals.py
 ```
@@ -160,7 +163,7 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-After Phase 11.3a passes CI and review, continue with fixture-backed PDF acceptance gates and table/figure sidecar validation before OCR or embeddings.
+After Phase 11.3b / 11.4a passes CI and review, decide whether real PVplant fixture coverage should be added through a submodule/checkout, then defer OCR and embeddings until the digital-PDF sidecar path is stable.
 
 
 ## Optional LLM enrichment (Phase 9)

@@ -74,7 +74,7 @@ Local partial verification during preparation:
 PYTHONPATH=/tmp/ol/src pytest -q /tmp/ol/tests/test_validators.py /tmp/ol/tests/test_pdf_validators.py
 ```
 
-Result: 14 passed in the local scratch copy.
+Result: 15 passed in the local scratch copy.
 
 `ruff` was not available in the scratch environment, so lint remains CI-verified only.
 

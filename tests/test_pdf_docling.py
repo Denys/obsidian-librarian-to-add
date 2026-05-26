@@ -53,7 +53,13 @@ def test_convert_pdf_with_docling_exports_table_sidecar_when_payload_has_tables(
             return "# Converted\n\nElectrical table extracted."
 
         def export_to_dict(self):
-            return {"body": {"tables": [{"cells": [["voltage", "current"], ["30V", "5A"]]}]}}
+            return {
+                "body": {
+                    "tables": [
+                        {"cells": [["voltage", "current"], ["30V", "5A"]]},
+                    ],
+                }
+            }
 
     class TableResult:
         document = TableDocument()

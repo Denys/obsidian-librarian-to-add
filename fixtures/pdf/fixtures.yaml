@@ -121,3 +121,39 @@ fixtures:
         - figures
         - equations
         - references
+  - id: pv_power_systems_classification_chapter
+    file: 2 Classification of PV Power Systems - PV PS -- modelling design control.pdf
+    role: book_chapter_images_schematics
+    phase_11_1:
+      expected_status: needs_review
+      expected_classification: mixed_or_digital_pdf
+    phase_11_2:
+      expected_outputs:
+        markdown_note: true
+        structured_json: true
+        tables: true
+        assets: true
+      must_preserve:
+        - photovoltaic
+        - power systems
+        - classification
+        - modelling
+        - control
+
+  - id: microinverter_techno_economic_review
+    file: A comprehensive techno-economic review of microinverters.pdf
+    role: two_column_microinverter_paper
+    phase_11_1:
+      expected_status: needs_review
+      expected_classification: mixed_or_digital_pdf
+    phase_11_2:
+      expected_outputs:
+        markdown_note: true
+        structured_json: true
+        tables: true
+        assets: true
+      must_preserve:
+        - microinverter
+        - techno-economic
+        - photovoltaic
+        - maximum power point

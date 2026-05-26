@@ -116,3 +116,51 @@ def test_load_docling_converter_missing_class(monkeypatch):
 
     with pytest.raises(PdfDependencyError, match="DocumentConverter"):
         pdf_docling._load_docling_converter()
+
+
+class FakePngImage:
+    def save(self, filelike, format="PNG"):
+        filelike.write(b"\x89PNG\r\n")
+
+
+def test_extract_docling_assets_none() -> None:
+    doc = types.SimpleNamespace()
+    assert pdf_docling._extract_docling_assets(doc) == ()
+
+
+def test_extract_docling_assets_from_bytes() -> None:
+    doc = types.SimpleNamespace(images=[types.SimpleNamespace(kind="image", bytes=b"abc", page=1)])
+    assets = pdf_docling._extract_docling_assets(doc)
+    assert len(assets) == 1
+    assert assets[0].relative_path.as_posix() == "page-001-image-001.png"
+    assert assets[0].content == b"abc"
+
+
+def test_extract_docling_assets_from_pil_like_image() -> None:
+    doc = types.SimpleNamespace(
+        figures=[
+            types.SimpleNamespace(kind="figure", image=FakePngImage(), page_number=2)
+        ]
+    )
+    assets = pdf_docling._extract_docling_assets(doc)
+    assert len(assets) == 1
+    assert assets[0].relative_path.as_posix() == "page-002-figure-001.png"
+    assert assets[0].content.startswith(b"\x89PNG")
+
+
+def test_safe_asset_name_rejects_unsafe_candidate_name() -> None:
+    candidate = types.SimpleNamespace(kind="figure", name="../evil.png")
+    asset_name = pdf_docling._safe_asset_name(candidate, 1)
+    assert ".." not in asset_name.as_posix()
+    assert not asset_name.is_absolute()
+
+
+def test_extract_docling_assets_multiple_are_deterministic() -> None:
+    doc = types.SimpleNamespace(
+        figures=[
+            types.SimpleNamespace(kind="figure", bytes=b"1"),
+            types.SimpleNamespace(kind="figure", bytes=b"2"),
+        ]
+    )
+    assets = pdf_docling._extract_docling_assets(doc)
+    assert [a.relative_path.as_posix() for a in assets] == ["figure-001.png", "figure-002.png"]

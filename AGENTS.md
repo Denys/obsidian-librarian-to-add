@@ -43,3 +43,8 @@ Do not claim a command passed unless it was actually run.
 - Review report behavior exists where relevant.
 - Output matches documented schemas.
 - Final response includes changed files and commands run.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->

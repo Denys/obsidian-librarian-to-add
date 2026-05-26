@@ -1,0 +1,123 @@
+schema_version: 1
+
+fixture_root: fixtures/pdf
+
+fixtures:
+  - id: digital_basic
+    file: digital-basic.pdf
+    role: selectable_text_baseline
+    phase_11_1:
+      expected_status: staged
+      expected_classification: digital_pdf
+    phase_11_2:
+      expected_outputs:
+        markdown_note: true
+        structured_json: true
+        tables: false
+        assets: false
+      must_preserve:
+        - Sentinel-A
+        - Sentinel-B
+        - Sentinel-C
+        - Sentinel-D
+
+  - id: malformed
+    file: malformed.pdf
+    role: malformed_input
+    phase_11_1:
+      expected_status: failed
+      expected_classification: malformed_pdf
+      expected_warning: invalid_header
+    phase_11_2:
+      should_convert: false
+
+  - id: scanned_one_page
+    file: scanned-one-page.pdf
+    role: ocr_deferred_image_only
+    phase_11_1:
+      expected_status: skipped
+      expected_classification: scanned_pdf
+      expected_warning: ocr_needed
+    phase_11_2:
+      should_convert_without_ocr: false
+      should_require_explicit_ocr: true
+
+  - id: pv_inverter_datasheet
+    file: pv-inverter-datasheet.pdf
+    role: real_datasheet_table_image_heavy
+    phase_11_1:
+      expected_status: needs_review
+      expected_classification: mixed_pdf
+    phase_11_2:
+      expected_outputs:
+        markdown_note: true
+        structured_json: true
+        tables: true
+        assets: true
+      must_preserve:
+        - peak output power
+        - nominal grid voltage
+        - MPPT voltage range
+        - maximum input DC voltage
+        - maximum units per branch circuit
+
+  - id: pv_installation_manual_excerpt
+    file: pv-installation-manual-excerpt.pdf
+    role: real_manual_safety_procedure
+    phase_11_1:
+      expected_status: needs_review
+      expected_classification: mixed_pdf
+    phase_11_2:
+      expected_outputs:
+        markdown_note: true
+        structured_json: true
+        tables: true
+        assets: true
+      must_preserve:
+        - safety warnings
+        - branch circuit capacity
+        - utility service requirements
+        - wire lengths and voltage rise
+        - installation sections
+
+  - id: table_heavy_electrical_spec
+    file: table-heavy-electrical-spec.pdf
+    role: table_extraction_target
+    phase_11_1:
+      expected_status: staged
+      expected_classification: digital_pdf
+    phase_11_2:
+      expected_outputs:
+        markdown_note: true
+        structured_json: true
+        tables: true
+        assets: false
+      must_preserve:
+        - Parameter
+        - Symbol
+        - Min
+        - Typ
+        - Max
+        - Unit
+        - Condition
+      must_not:
+        - flatten_tables_into_prose_only
+
+  - id: app_note_mixed_layout
+    file: app-note-mixed-layout.pdf
+    role: long_technical_app_note
+    phase_11_1:
+      expected_status: needs_review
+      expected_classification: mixed_or_digital_pdf
+    phase_11_2:
+      expected_outputs:
+        markdown_note: true
+        structured_json: true
+        tables: false
+        assets: true
+      must_preserve:
+        - table of contents
+        - buck power stage sections
+        - figures
+        - equations
+        - references

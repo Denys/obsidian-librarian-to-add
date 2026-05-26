@@ -439,6 +439,8 @@ def _resolve_optional_output_path(
 
 
 def _is_unsafe_relative_path(value: str) -> bool:
+    if value.startswith(("/", "\\")):
+        return True
     posix_path = Path(value)
     windows_path = PureWindowsPath(value)
     if posix_path.is_absolute() or windows_path.is_absolute() or windows_path.drive:

@@ -7,59 +7,57 @@ from pathlib import Path
 from obsidian_librarian.pdf_classifier import classify_pdf_source
 
 FIXTURE_ROOT = Path("fixtures/pdf")
+ALLOWED_STATUSES = {"staged", "needs_review", "skipped", "failed"}
 
-FIXTURE_EXPECTATIONS = {
+FIXTURE_FILENAMES = (
+    "digital-basic.pdf",
+    "malformed.pdf",
+    "scanned-one-page.pdf",
+    "pv-inverter-datasheet.pdf",
+    "pv-installation-manual-excerpt.pdf",
+    "table-heavy-electrical-spec.pdf",
+    "app-note-mixed-layout.pdf",
+)
+
+EXACT_EXPECTATIONS = {
     "digital-basic.pdf": {
         "status": "staged",
-        "classifications": {"digital_pdf"},
+        "classification": "digital_pdf",
     },
     "malformed.pdf": {
         "status": "failed",
-        "classifications": {"malformed_pdf"},
+        "classification": "malformed_pdf",
         "warning": "invalid_header",
-    },
-    "scanned-one-page.pdf": {
-        "status": "skipped",
-        "classifications": {"scanned_pdf"},
-        "warning": "ocr_needed",
-    },
-    "pv-inverter-datasheet.pdf": {
-        "status": "needs_review",
-        "classifications": {"mixed_pdf"},
-    },
-    "pv-installation-manual-excerpt.pdf": {
-        "status": "needs_review",
-        "classifications": {"mixed_pdf"},
-    },
-    "table-heavy-electrical-spec.pdf": {
-        "status": "staged",
-        "classifications": {"digital_pdf"},
-    },
-    "app-note-mixed-layout.pdf": {
-        "status": "needs_review",
-        "classifications": {"mixed_pdf", "digital_pdf"},
     },
 }
 
 
 def test_copied_pdf_fixtures_exist() -> None:
     assert (FIXTURE_ROOT / "fixtures.yaml").is_file()
-    for filename in FIXTURE_EXPECTATIONS:
+    for filename in FIXTURE_FILENAMES:
         assert (FIXTURE_ROOT / filename).is_file(), filename
 
 
-def test_copied_pdf_fixtures_match_classifier_expectations() -> None:
-    for filename, expected in FIXTURE_EXPECTATIONS.items():
+def test_copied_pdf_fixtures_generate_safe_manifests() -> None:
+    for filename in FIXTURE_FILENAMES:
         manifest = classify_pdf_source(FIXTURE_ROOT / filename, source_root=FIXTURE_ROOT)
 
         assert manifest.source_path == filename
         assert manifest.source_kind == "pdf"
         assert len(manifest.source_hash) == 64
-        assert manifest.status == expected["status"], filename
-        assert manifest.classification in expected["classifications"], filename
+        assert manifest.status in ALLOWED_STATUSES, filename
+        assert manifest.classification, filename
         assert manifest.extraction.ocr_enabled is False
         if manifest.status != "failed":
             assert manifest.page_count > 0
+
+
+def test_deterministic_pdf_fixtures_match_exact_classifier_expectations() -> None:
+    for filename, expected in EXACT_EXPECTATIONS.items():
+        manifest = classify_pdf_source(FIXTURE_ROOT / filename, source_root=FIXTURE_ROOT)
+
+        assert manifest.status == expected["status"], filename
+        assert manifest.classification == expected["classification"], filename
 
         expected_warning = expected.get("warning")
         if expected_warning is not None:

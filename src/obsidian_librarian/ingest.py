@@ -152,7 +152,12 @@ def convert_pdf_manifests(
             converted.append(mark_pdf_conversion_failed(manifest, str(exc)))
             continue
 
-        markdown_content = render_pdf_docling_note(manifest, conversion.markdown)
+        markdown_content = render_pdf_docling_note(
+            manifest,
+            conversion.markdown,
+            tables_present=conversion.tables_json is not None,
+            assets_present=bool(conversion.assets),
+        )
         markdown_write = vault.write_staged_text_unique(markdown_relative, markdown_content)
         json_write = vault.write_staged_text_unique(json_relative, conversion.structured_json)
         table_paths = write_pdf_table_sidecars(manifest, conversion, vault)
@@ -204,9 +209,13 @@ def write_pdf_assets(
         return None
 
     asset_dir = staged_pdf_assets_dir_path(manifest)
+    wrote_any = False
     for asset in conversion.assets:
+        if not asset.content:
+            continue
         vault.write_staged_bytes_unique(asset_dir / asset.relative_path, asset.content)
-    return asset_dir
+        wrote_any = True
+    return asset_dir if wrote_any else None
 
 
 def mark_pdf_docling_converted(
@@ -251,7 +260,12 @@ def mark_pdf_conversion_failed(manifest: PdfManifest, message: str) -> PdfManife
     )
 
 
-def render_pdf_docling_note(manifest: PdfManifest, markdown: str) -> str:
+def render_pdf_docling_note(
+    manifest: PdfManifest,
+    markdown: str,
+    tables_present: bool = False,
+    assets_present: bool = False,
+) -> str:
     """Wrap Docling Markdown in a staged Obsidian source note."""
     return (
         "---\n"
@@ -275,9 +289,23 @@ def render_pdf_docling_note(manifest: PdfManifest, markdown: str) -> str:
         "No action items extracted deterministically in Phase 11.2.\n\n"
         "## Open questions\n\n"
         "Review extraction quality, page ordering, tables, figures, and units before promotion.\n\n"
-        "## Extracted content\n\n"
+        + _render_generated_sidecars_section(
+            tables_present=tables_present,
+            assets_present=assets_present,
+        )
+        + "## Extracted content\n\n"
         f"{markdown.strip()}\n\n"
         "## Links\n\n"
         f"- Source path: `{manifest.source_path}`\n"
         f"- Source hash: `{manifest.source_hash}`\n"
     )
+
+def _render_generated_sidecars_section(*, tables_present: bool, assets_present: bool) -> str:
+    if not tables_present and not assets_present:
+        return ""
+    lines = ["## Generated sidecars", "", "- Structured JSON: `docling.json`"]
+    if tables_present:
+        lines.append("- Tables: `tables.json`")
+    if assets_present:
+        lines.append("- Assets: `assets/`")
+    return "\n".join(lines) + "\n\n"

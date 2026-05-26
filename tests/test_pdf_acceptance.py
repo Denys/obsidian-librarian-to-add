@@ -149,7 +149,12 @@ def test_mocked_docling_acceptance_writes_validated_sidecars_and_assets(
     assert docling_json.exists()
     assert tables_json.exists()
     assert asset.read_bytes() == b"mock-figure-bytes"
-    assert "Sentinel-A Sentinel-D" in source_note.read_text(encoding="utf-8")
+    source_text = source_note.read_text(encoding="utf-8")
+    assert "Sentinel-A Sentinel-D" in source_text
+    assert "## Generated sidecars" in source_text
+    assert "- Structured JSON: `docling.json`" in source_text
+    assert "- Tables: `tables.json`" in source_text
+    assert "- Assets: `assets/`" in source_text
 
     validation = validate_path(staging)
 

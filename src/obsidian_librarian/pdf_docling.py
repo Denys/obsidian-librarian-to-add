@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from importlib import import_module, metadata
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +50,7 @@ def convert_pdf_with_docling(path: str | Path) -> DoclingConversionResult:
         structured_payload = _export_docling_payload(document)
         structured = _json_dumps(structured_payload)
         tables_json = _export_docling_tables_json(structured_payload)
+        assets = _extract_docling_assets(document)
     except Exception as exc:
         raise PdfConversionError(f"Docling conversion failed for {pdf_path}: {exc}") from exc
 
@@ -60,7 +62,100 @@ def convert_pdf_with_docling(path: str | Path) -> DoclingConversionResult:
         structured_json=structured,
         engine_version=_docling_version(),
         tables_json=tables_json,
+        assets=assets,
     )
+
+
+
+
+def _extract_docling_assets(document: Any) -> tuple[DoclingAsset, ...]:
+    candidates = list(_iter_docling_asset_candidates(document))
+    assets: list[DoclingAsset] = []
+    for index, candidate in enumerate(candidates, start=1):
+        payload = _asset_bytes(candidate)
+        if not payload:
+            continue
+        assets.append(
+            DoclingAsset(
+                relative_path=_safe_asset_name(candidate, index),
+                content=payload,
+            )
+        )
+    return tuple(assets)
+
+
+def _iter_docling_asset_candidates(document: Any):
+    for attr in ("pictures", "images", "figures", "elements", "pages"):
+        value = getattr(document, attr, None)
+        yield from _iter_candidate_values(value)
+
+
+def _iter_candidate_values(value: Any):
+    if value is None:
+        return
+    if isinstance(value, dict):
+        for child in value.values():
+            yield from _iter_candidate_values(child)
+        return
+    if isinstance(value, (list, tuple, set)):
+        for child in value:
+            yield from _iter_candidate_values(child)
+        return
+    yield value
+
+
+def _asset_bytes(candidate: Any) -> bytes | None:
+    for key in ("content", "bytes", "data", "image_bytes"):
+        raw = getattr(candidate, key, None)
+        if isinstance(raw, bytes) and raw:
+            return raw
+
+    image = getattr(candidate, "image", None) or getattr(candidate, "pil_image", None)
+    if image is not None and hasattr(image, "save"):
+        output = BytesIO()
+        try:
+            image.save(output, format="PNG")
+        except Exception:
+            return None
+        payload = output.getvalue()
+        return payload if payload else None
+
+    pathish = getattr(candidate, "path", None) or getattr(candidate, "file", None)
+    if isinstance(pathish, (str, Path)):
+        path = Path(pathish).expanduser()
+        if path.is_absolute() and path.is_file():
+            try:
+                return path.read_bytes()
+            except OSError:
+                return None
+
+    return None
+
+
+def _safe_asset_name(candidate: Any, index: int) -> Path:
+    label = str(getattr(candidate, "kind", "")).lower()
+    if "figure" in label:
+        kind = "figure"
+    elif "image" in label:
+        kind = "image"
+    else:
+        kind = "figure" if hasattr(candidate, "caption") else "image"
+
+    page = _asset_page(candidate)
+    stem = f"{kind}-{index:03d}.png"
+    if page is not None and page > 0:
+        stem = f"page-{page:03d}-{kind}-{index:03d}.png"
+    return Path(stem)
+
+
+def _asset_page(candidate: Any) -> int | None:
+    for key in ("page", "page_no", "page_number"):
+        value = getattr(candidate, key, None)
+        if isinstance(value, int) and value > 0:
+            return value
+        if isinstance(value, str) and value.isdigit() and int(value) > 0:
+            return int(value)
+    return None
 
 
 def _load_docling_converter() -> type[Any]:

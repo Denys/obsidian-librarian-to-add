@@ -17,6 +17,8 @@ FIXTURE_FILENAMES = (
     "pv-installation-manual-excerpt.pdf",
     "table-heavy-electrical-spec.pdf",
     "app-note-mixed-layout.pdf",
+    "2 Classification of PV Power Systems - PV PS -- modelling design control.pdf",
+    "A comprehensive techno-economic review of microinverters.pdf",
 )
 
 EXACT_EXPECTATIONS = {
@@ -63,3 +65,9 @@ def test_deterministic_pdf_fixtures_match_exact_classifier_expectations() -> Non
         if expected_warning is not None:
             warning_codes = {warning.code for warning in manifest.extraction.warnings}
             assert expected_warning in warning_codes
+
+
+def test_heavy_fixture_entries_present_in_yaml() -> None:
+    fixtures_yaml = (FIXTURE_ROOT / "fixtures.yaml").read_text(encoding="utf-8")
+    assert "pv_power_systems_classification_chapter" in fixtures_yaml
+    assert "microinverter_techno_economic_review" in fixtures_yaml

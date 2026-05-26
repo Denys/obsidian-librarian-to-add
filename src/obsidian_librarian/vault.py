@@ -127,3 +127,37 @@ class ObsidianVault:
         target = self.next_available_staged_path(relative_path)
         relative_target = target.relative_to(self.staging_root)
         return self.write_staged_text(relative_target, content, overwrite=False, encoding=encoding)
+
+    def write_staged_bytes(
+        self,
+        relative_path: str | Path,
+        content: bytes,
+        *,
+        overwrite: bool = False,
+    ) -> StagedWriteResult:
+        """Write bytes to a staged file with the same safety policy as text writes."""
+        target = self.resolve_staged_path(relative_path)
+        existed = target.exists()
+
+        if existed and not overwrite:
+            raise FileExistsError(f"Refusing to overwrite existing staged file: {target}")
+
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+
+        return StagedWriteResult(
+            path=target,
+            created=not existed,
+            overwritten=existed,
+            message="staged file written" if not existed else "staged file overwritten",
+        )
+
+    def write_staged_bytes_unique(
+        self,
+        relative_path: str | Path,
+        content: bytes,
+    ) -> StagedWriteResult:
+        """Write bytes to the first available staged path without overwriting."""
+        target = self.next_available_staged_path(relative_path)
+        relative_target = target.relative_to(self.staging_root)
+        return self.write_staged_bytes(relative_target, content, overwrite=False)

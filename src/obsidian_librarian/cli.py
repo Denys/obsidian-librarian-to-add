@@ -12,6 +12,7 @@ from obsidian_librarian.extractors import MockExtractor, OpenAIExtractor
 from obsidian_librarian.indexer import build_index
 from obsidian_librarian.ingest import ingest_inbox
 from obsidian_librarian.note_quality import review_note_quality_path
+from obsidian_librarian.pdf_fixtures import load_pdf_fixtures
 from obsidian_librarian.review_report import render_review_report
 from obsidian_librarian.search import search_index
 from obsidian_librarian.validators import render_validation_summary, validate_path
@@ -108,6 +109,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Search scope.",
     )
 
+    eval_pdf = subparsers.add_parser(
+        "eval-pdf-fixtures",
+        help="Validate and load a PDF fixtures inventory.",
+    )
+    eval_pdf.add_argument("inventory", help="Path to fixtures.yaml inventory")
+    eval_pdf.add_argument("--vault", default=".", help="Vault root path.")
+
     report = subparsers.add_parser(
         "report",
         help="Placeholder for future review-report inspection.",
@@ -147,6 +155,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "search":
         return run_search_command(args)
+
+    if args.command == "eval-pdf-fixtures":
+        return run_eval_pdf_fixtures_command(args)
 
     print(f"Command '{args.command}' is registered, but runtime behavior is not implemented yet.")
     return 0
@@ -308,3 +319,19 @@ def run_search_command(args: argparse.Namespace) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def run_eval_pdf_fixtures_command(args: argparse.Namespace) -> int:
+    """Validate and load a PDF fixtures inventory for Phase 11.1b."""
+    _ = Path(args.vault)
+    try:
+        fixtures = load_pdf_fixtures(Path(args.inventory))
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return 2
+
+    print("# PDF Fixture Inventory")
+    print(f"Inventory: {Path(args.inventory)}")
+    print(f"Fixtures loaded: {len(fixtures)}")
+    print("Validation: pass")
+    return 0

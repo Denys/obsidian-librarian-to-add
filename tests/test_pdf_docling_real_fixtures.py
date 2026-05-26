@@ -12,6 +12,7 @@ DOCILING = pytest.importorskip("docling")
 
 FIXTURE_ROOT = Path("fixtures/pdf")
 
+
 @pytest.mark.parametrize(
     "filename,required_terms,allow_missing_assets",
     [
@@ -34,8 +35,8 @@ def test_docling_real_fixture_smoke(
 
     result = ingest_inbox(inbox, tmp_path, mode="draft", include_pdf=True, pdf_converter="docling")
     manifest = result.pdf_manifests[0]
-    stem = Path(filename).stem
-    staging_root = tmp_path / "90_Staging" / "pdf" / stem
+    assert manifest.outputs.root is not None
+    staging_root = tmp_path / "90_Staging" / manifest.outputs.root
 
     assert (staging_root / "manifest.json").is_file()
     assert (staging_root / "source.md").is_file()

@@ -20,9 +20,11 @@ from obsidian_librarian.pdf_classifier import (
     classify_pdf_source,
     discover_pdf_sources,
     render_pdf_manifest_json,
+    staged_pdf_assets_dir_path,
     staged_pdf_manifest_path,
     staged_pdf_markdown_path,
     staged_pdf_structured_json_path,
+    staged_pdf_tables_json_path,
 )
 from obsidian_librarian.pdf_docling import (
     DoclingConversionResult,
@@ -153,6 +155,8 @@ def convert_pdf_manifests(
         markdown_content = render_pdf_docling_note(manifest, conversion.markdown)
         markdown_write = vault.write_staged_text_unique(markdown_relative, markdown_content)
         json_write = vault.write_staged_text_unique(json_relative, conversion.structured_json)
+        table_paths = write_pdf_table_sidecars(manifest, conversion, vault)
+        asset_dir = write_pdf_assets(manifest, conversion, vault)
         result.generated.append(
             GeneratedNote(
                 source_path=source_pdf,
@@ -167,10 +171,42 @@ def convert_pdf_manifests(
                 conversion,
                 markdown_write.path.relative_to(vault.staging_root),
                 json_write.path.relative_to(vault.staging_root),
+                table_paths,
+                asset_dir,
             )
         )
 
     return converted
+
+
+def write_pdf_table_sidecars(
+    manifest: PdfManifest,
+    conversion: DoclingConversionResult,
+    vault: ObsidianVault,
+) -> tuple[Path, ...]:
+    """Write optional table sidecar artifacts and return staged relative paths."""
+    if conversion.tables_json is None:
+        return ()
+    table_write = vault.write_staged_text_unique(
+        staged_pdf_tables_json_path(manifest),
+        conversion.tables_json,
+    )
+    return (table_write.path.relative_to(vault.staging_root),)
+
+
+def write_pdf_assets(
+    manifest: PdfManifest,
+    conversion: DoclingConversionResult,
+    vault: ObsidianVault,
+) -> Path | None:
+    """Write optional PDF assets and return the staged asset directory path."""
+    if not conversion.assets:
+        return None
+
+    asset_dir = staged_pdf_assets_dir_path(manifest)
+    for asset in conversion.assets:
+        vault.write_staged_bytes_unique(asset_dir / asset.relative_path, asset.content)
+    return asset_dir
 
 
 def mark_pdf_docling_converted(
@@ -178,6 +214,8 @@ def mark_pdf_docling_converted(
     conversion: DoclingConversionResult,
     markdown_relative: Path,
     json_relative: Path,
+    table_relatives: tuple[Path, ...] = (),
+    asset_dir_relative: Path | None = None,
 ) -> PdfManifest:
     """Return a manifest updated with Docling output paths."""
     return replace(
@@ -192,6 +230,8 @@ def mark_pdf_docling_converted(
             root=manifest.outputs.root,
             markdown_note=markdown_relative.as_posix(),
             json_sidecar=json_relative.as_posix(),
+            table_sidecars=tuple(path.as_posix() for path in table_relatives),
+            asset_dir=asset_dir_relative.as_posix() if asset_dir_relative is not None else None,
         ),
     )
 

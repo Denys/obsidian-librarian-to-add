@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from obsidian_librarian.pdf_validators import validate_pdf_staging_path
+
 REQUIRED_FIELDS_BY_TYPE = {
     "source": ("type", "source_kind", "source_path", "status", "confidence"),
     "atomic": ("type", "source_path", "status", "confidence"),
@@ -48,6 +50,8 @@ class ValidationSummary:
     checked_files: list[Path] = field(default_factory=list)
     skipped_files: list[Path] = field(default_factory=list)
     issues: list[ValidationIssue] = field(default_factory=list)
+    checked_pdf_manifests: list[Path] = field(default_factory=list)
+    checked_pdf_artifact_dirs: list[Path] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -74,7 +78,23 @@ def validate_path(path: str | Path) -> ValidationSummary:
         summary.checked_files.append(candidate)
         summary.issues.extend(validate_note(candidate))
 
+    if should_run_pdf_validation(root):
+        pdf_summary = validate_pdf_staging_path(root)
+        summary.checked_pdf_manifests.extend(pdf_summary.checked_manifests)
+        summary.checked_pdf_artifact_dirs.extend(pdf_summary.checked_artifact_dirs)
+        summary.issues.extend(
+            ValidationIssue(issue.path, f"PDF artifact validation: {issue.message}", issue.severity)
+            for issue in pdf_summary.issues
+        )
+
     return summary
+
+
+def should_run_pdf_validation(path: Path) -> bool:
+    """Return true when a validation target includes staged PDF artifacts."""
+    if path.is_file():
+        return path.name == "manifest.json"
+    return path.name == "pdf" or (path / "pdf").exists() or (path / "manifest.json").exists()
 
 
 def should_skip_validation(path: Path) -> bool:
@@ -163,6 +183,10 @@ def render_validation_summary(summary: ValidationSummary) -> str:
         f"- Issues: {len(summary.issues)}",
         "",
     ]
+
+    if summary.checked_pdf_artifact_dirs or summary.checked_pdf_manifests:
+        lines.insert(5, f"- Checked PDF artifact dirs: {len(summary.checked_pdf_artifact_dirs)}")
+        lines.insert(6, f"- Checked PDF manifests: {len(summary.checked_pdf_manifests)}")
 
     if summary.passed:
         lines.append("Validation passed.")

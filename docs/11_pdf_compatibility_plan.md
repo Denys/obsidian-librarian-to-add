@@ -4,7 +4,7 @@
 
 This document defines the design, implementation status, and remaining gates for PDF compatibility in Obsidian Librarian.
 
-PDF support is implemented as a deterministic, staging-only intake layer through Phase 11.5. It is isolated from the Markdown/TXT parser, and it does not introduce automatic OCR, embeddings, Agents SDK orchestration, or autonomous vault mutation.
+PDF support is implemented as a deterministic, staging-only intake layer through Phase 11.6. It is isolated from the Markdown/TXT parser, and it does not introduce automatic OCR, embeddings, Agents SDK orchestration, or autonomous vault mutation.
 
 The target architecture is:
 
@@ -13,6 +13,7 @@ PDF file
   -> deterministic PDF classifier
   -> extraction manifest
   -> Docling digital-PDF conversion
+  -> optional explicit scanned-PDF OCR
   -> staged Markdown note + sidecar JSON/assets
   -> validators and evals
   -> existing review/report/index/search layers
@@ -27,7 +28,7 @@ Rationale:
 - PDF-heavy knowledge bases fail downstream when extraction loses page order, headings, tables, captions, or figures.
 - Docling is a strong fit for the first serious conversion phase because it supports PDF understanding and structured exports such as Markdown and JSON.
 - A deterministic classifier/manifest phase should come first so low-text, scanned, encrypted, or malformed PDFs are refused or warned before conversion.
-- OCR must remain an explicit later phase because it adds dependency, runtime, confidence, and language-selection risk.
+- OCR remains explicit because it adds dependency, runtime, confidence, and language-selection risk.
 
 Rejected for the first implementation slice:
 
@@ -49,7 +50,7 @@ Rejected for the first implementation slice:
 | 11.3b / 11.4a | Done, verified locally | Fixture-backed PDF acceptance plus table/assets sidecar preservation | Docling export artifacts | `90_Staging/` sidecars/assets only |
 | 11.4d | Done, verified locally | Docling pipeline option hardening with OCR disabled | installed Docling `PdfPipelineOptions` API | none |
 | 11.5 | Done, verified locally | Table and diagram quality gates | internal validators/evals | none, except reports |
-| 11.6 | Deferred | Explicit OCR path for scanned PDFs | optional `ocr` dependency group | staged OCR-derived notes/sidecars only |
+| 11.6 | Done, targeted verified locally | Explicit OCR path for scanned PDFs | optional `ocr` dependency group | staged OCR-derived notes/sidecars only |
 
 ## Phase 11.0 — Design/spec cleanup
 
@@ -242,10 +243,12 @@ Acceptance criteria:
 
 Goal: support scanned PDFs only after digital-PDF intake is stable.
 
+Status: implemented as explicit, review-required OCR for scanned PDFs, with targeted local verification.
+
 Allowed:
 
-- add explicit `--ocr` or equivalent flag;
-- add optional dependency group, likely `ocr`;
+- add explicit `--pdf-ocr` flag;
+- add optional `ocr` dependency group;
 - record OCR engine, language, page count, confidence if available, and failure reason;
 - keep OCR-derived content staged and reviewable.
 
@@ -258,10 +261,12 @@ Not allowed:
 
 Acceptance criteria:
 
-- scanned PDFs are refused or warned without `--ocr`;
+- scanned PDFs are refused or warned without `--pdf-ocr`;
 - OCR behavior is explicit, documented, and dependency-isolated;
 - OCR warnings appear in review reports;
 - OCR output remains staging-only.
+- OCR output manifests use `status: needs_review`, `extraction.method: ocr`, and `extraction.ocr_enabled: true`;
+- normal Docling conversion continues to use OCR-disabled pipeline options with remote services and external plugins disabled.
 
 ## Current manifest schema
 
@@ -278,7 +283,7 @@ text_density:
   chars_per_page_median: integer
   empty_pages: integer
 extraction:
-  method: none | classifier_probe | docling | ocr
+  method: classifier_probe | docling | ocr
   engine_version: string | null
   ocr_enabled: boolean
   warnings:
@@ -326,6 +331,18 @@ provenance:
 - Generated-note artifact links: `docling.json`, `tables.json`, and `assets/...` links resolve under the staged PDF artifact folder.
 - Real copied fixtures: table-heavy fixtures require non-empty table sidecars when present; diagram-heavy fixtures require staged assets and note links when present.
 
+## Implemented eval and test gates through Phase 11.6
+
+- PDF OCR is rejected unless PDF intake is enabled.
+- PDF OCR is rejected unless `--pdf-converter docling` is selected.
+- Scanned PDFs remain skipped with `ocr_needed` warnings when `--pdf-ocr` is absent.
+- Explicit scanned-PDF OCR writes `source.md`, `docling.json`, and `manifest.json` under `90_Staging/pdf/<source>/`.
+- OCR manifests are marked `needs_review`, use `extraction.method: ocr`, and record `ocr_enabled: true`.
+- OCR notes include an OCR warning, `review_required: true`, and `confidence: "ocr-derived-needs-review"`.
+- PDF validators accept OCR manifests only when OCR is explicit and review-required, while preserving Docling table sidecar and Markdown artifact-link checks.
+- The Docling OCR adapter uses a separate pipeline builder and keeps remote services, external plugins, picture classification, and picture description disabled.
+- Optional real scanned-fixture OCR smoke exists and skips when the local Docling/OCR runtime fails safely.
+
 ## Risk register
 
 | Risk | Impact | Mitigation |
@@ -340,10 +357,9 @@ provenance:
 
 ## Next implementation gate
 
-Phase 11.6 remains optional and deferred:
+Phase 11.6 is implemented. The next PDF-adjacent gate should stay focused on real-fixture review workflow quality rather than embeddings/RAG:
 
-- add explicit OCR only behind a dedicated flag;
-- keep OCR in an optional dependency path;
-- record OCR engine/language/confidence metadata and review warnings;
+- keep OCR outputs review-required until manual promotion policy exists;
+- improve OCR language/runtime configuration only behind explicit flags;
 - never rewrite source PDFs;
-- keep embeddings/RAG deferred until deterministic PDF quality stays stable.
+- keep embeddings/RAG deferred until deterministic PDF and OCR quality stays stable.

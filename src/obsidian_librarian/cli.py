@@ -63,6 +63,14 @@ def build_parser() -> argparse.ArgumentParser:
         default="none",
         help="Optional PDF converter. docling requires installing the [pdf] extra.",
     )
+    ingest.add_argument(
+        "--pdf-ocr",
+        action="store_true",
+        help=(
+            "Explicitly enable OCR for scanned PDFs. Requires --include-pdf and "
+            "--pdf-converter docling."
+        ),
+    )
 
     validate = subparsers.add_parser(
         "validate",
@@ -164,6 +172,7 @@ def run_ingest_command(args: argparse.Namespace) -> int:
             mode=args.mode,
             include_pdf=args.include_pdf,
             pdf_converter=args.pdf_converter,
+            pdf_ocr=args.pdf_ocr,
         )
     except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
         print(f"Error: {exc}")

@@ -9,7 +9,7 @@ from pathlib import Path, PureWindowsPath
 from typing import Any
 
 PDF_ALLOWED_STATUSES = {"staged", "needs_review", "skipped", "failed"}
-PDF_ALLOWED_EXTRACTION_METHODS = {"classifier_probe", "docling"}
+PDF_ALLOWED_EXTRACTION_METHODS = {"classifier_probe", "docling", "ocr"}
 PDF_SCHEMA_VERSION = 1
 PDF_HEX_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 PDF_ARTIFACT_FILENAMES = {
@@ -167,10 +167,12 @@ def validate_pdf_manifest(
 
     method = extraction.get("method") if extraction is not None else None
     status = payload.get("status")
-    if method == "docling" and status not in {"failed", "skipped"}:
+    if method in {"docling", "ocr"} and status not in {"failed", "skipped"}:
         issues.extend(_validate_docling_outputs_required(path, staging, outputs))
         if outputs is not None:
             issues.extend(_validate_docling_table_sidecars(path, staging, outputs))
+    if method == "ocr" and status not in {"needs_review", "failed", "skipped"}:
+        issues.append(path_issue(path, "OCR extraction requires status needs_review"))
 
     if outputs is not None and outputs.get("markdown_note") is not None:
         markdown_path = _resolve_optional_output_path(
@@ -182,7 +184,7 @@ def validate_pdf_manifest(
         )
         if markdown_path is not None and markdown_path.exists() and markdown_path.is_file():
             issues.extend(_validate_markdown_frontmatter(path, markdown_path, payload))
-            if method == "docling" and status not in {"failed", "skipped"}:
+            if method in {"docling", "ocr"} and status not in {"failed", "skipped"}:
                 issues.extend(
                     _validate_pdf_markdown_artifact_links(
                         path,
@@ -234,8 +236,14 @@ def _validate_manifest_schema(path: Path, payload: dict[str, Any]) -> list[PdfVa
     if extraction is not None:
         method = extraction.get("method")
         if method not in PDF_ALLOWED_EXTRACTION_METHODS:
-            issues.append(path_issue(path, "extraction.method must be classifier_probe or docling"))
-        if extraction.get("ocr_enabled") is not False:
+            issues.append(
+                path_issue(path, "extraction.method must be classifier_probe, docling, or ocr")
+            )
+        ocr_enabled = extraction.get("ocr_enabled")
+        if method == "ocr":
+            if ocr_enabled is not True:
+                issues.append(path_issue(path, "OCR extraction requires ocr_enabled true"))
+        elif ocr_enabled is not False:
             issues.append(path_issue(path, "extraction.ocr_enabled must remain false"))
 
     _object_field(path, payload, "outputs", issues)
@@ -568,7 +576,9 @@ def _validate_markdown_frontmatter(
         "source_hash": str(manifest.get("source_hash")),
         "page_count": str(manifest.get("page_count")),
         "extraction_method": str(_nested_get(manifest, "extraction", "method")),
-        "ocr_enabled": "false",
+        "ocr_enabled": (
+            "true" if _nested_get(manifest, "extraction", "ocr_enabled") is True else "false"
+        ),
     }
 
     issues: list[PdfValidationIssue] = []

@@ -47,15 +47,32 @@ class DoclingPdfFormatApi:
     input_format: Any
     pdf_format_option_cls: type[Any]
     pdf_pipeline_options_cls: type[Any]
+    ocr_options_cls: type[Any] | None = None
 
 
 def convert_pdf_with_docling(path: str | Path) -> DoclingConversionResult:
     """Convert a PDF with Docling and return Markdown plus structured sidecars."""
+    return _convert_pdf_with_docling_converter(path, build_ocr_converter=False)
+
+
+def convert_pdf_with_docling_ocr(path: str | Path) -> DoclingConversionResult:
+    """Convert a scanned PDF with explicit Docling OCR enabled."""
+    return _convert_pdf_with_docling_converter(path, build_ocr_converter=True)
+
+
+def _convert_pdf_with_docling_converter(
+    path: str | Path,
+    *,
+    build_ocr_converter: bool,
+) -> DoclingConversionResult:
     pdf_path = Path(path).expanduser().resolve(strict=False)
     converter_cls = _load_docling_converter()
 
     try:
-        converter = _build_docling_converter(converter_cls)
+        if build_ocr_converter:
+            converter = _build_docling_ocr_converter(converter_cls)
+        else:
+            converter = _build_docling_converter(converter_cls)
     except PdfDependencyError:
         raise
     except Exception as exc:
@@ -87,6 +104,16 @@ def convert_pdf_with_docling(path: str | Path) -> DoclingConversionResult:
 def _build_docling_converter(converter_cls: type[Any]) -> Any:
     api = _load_docling_pdf_format_api()
     pipeline_options = _build_docling_pdf_pipeline_options(api.pdf_pipeline_options_cls)
+    pdf_format_option = api.pdf_format_option_cls(pipeline_options=pipeline_options)
+    return converter_cls(format_options={api.input_format.PDF: pdf_format_option})
+
+
+def _build_docling_ocr_converter(converter_cls: type[Any]) -> Any:
+    api = _load_docling_pdf_format_api()
+    pipeline_options = _build_docling_ocr_pdf_pipeline_options(
+        api.pdf_pipeline_options_cls,
+        api.ocr_options_cls,
+    )
     pdf_format_option = api.pdf_format_option_cls(pipeline_options=pipeline_options)
     return converter_cls(format_options={api.input_format.PDF: pdf_format_option})
 
@@ -269,6 +296,7 @@ def _load_docling_pdf_format_api() -> DoclingPdfFormatApi:
             input_format=base_models_module.InputFormat,
             pdf_format_option_cls=converter_module.PdfFormatOption,
             pdf_pipeline_options_cls=pipeline_options_module.PdfPipelineOptions,
+            ocr_options_cls=getattr(pipeline_options_module, "OcrAutoOptions", None),
         )
     except AttributeError as exc:
         raise PdfDependencyError(
@@ -278,7 +306,42 @@ def _load_docling_pdf_format_api() -> DoclingPdfFormatApi:
 
 def _build_docling_pdf_pipeline_options(pdf_pipeline_options_cls: type[Any]) -> Any:
     options = pdf_pipeline_options_cls()
-    _set_required_docling_option(options, "do_ocr", False)
+    _set_required_docling_option(
+        options,
+        "do_ocr",
+        False,
+        "Installed docling package cannot guarantee OCR disabled for PDF conversion",
+    )
+    _harden_docling_pipeline_options(options)
+    if getattr(options, "do_ocr", None) is not False:
+        raise PdfDependencyError(
+            "Installed docling package cannot guarantee OCR disabled for PDF conversion"
+        )
+    return options
+
+
+def _build_docling_ocr_pdf_pipeline_options(
+    pdf_pipeline_options_cls: type[Any],
+    ocr_options_cls: type[Any] | None = None,
+) -> Any:
+    options = pdf_pipeline_options_cls()
+    _set_required_docling_option(
+        options,
+        "do_ocr",
+        True,
+        "Installed docling package cannot guarantee OCR enabled for PDF conversion",
+    )
+    _harden_docling_pipeline_options(options)
+    if ocr_options_cls is not None and _supports_docling_option(options, "ocr_options"):
+        options.ocr_options = ocr_options_cls(lang=["en"], force_full_page_ocr=True)
+    if getattr(options, "do_ocr", None) is not True:
+        raise PdfDependencyError(
+            "Installed docling package cannot guarantee OCR enabled for PDF conversion"
+        )
+    return options
+
+
+def _harden_docling_pipeline_options(options: Any) -> None:
     _set_optional_docling_options(
         options,
         {
@@ -295,18 +358,16 @@ def _build_docling_pdf_pipeline_options(pdf_pipeline_options_cls: type[Any]) -> 
             "force_backend_text": False,
         },
     )
-    if getattr(options, "do_ocr", None) is not False:
-        raise PdfDependencyError(
-            "Installed docling package cannot guarantee OCR disabled for PDF conversion"
-        )
-    return options
 
 
-def _set_required_docling_option(options: Any, name: str, value: Any) -> None:
+def _set_required_docling_option(
+    options: Any,
+    name: str,
+    value: Any,
+    error_message: str,
+) -> None:
     if not _supports_docling_option(options, name):
-        raise PdfDependencyError(
-            "Installed docling package cannot guarantee OCR disabled for PDF conversion"
-        )
+        raise PdfDependencyError(error_message)
     setattr(options, name, value)
 
 

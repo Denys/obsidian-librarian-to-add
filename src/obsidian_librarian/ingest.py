@@ -31,6 +31,7 @@ from obsidian_librarian.pdf_docling import (
     PdfConversionError,
     PdfDependencyError,
     convert_pdf_with_docling,
+    convert_pdf_with_docling_ocr,
 )
 from obsidian_librarian.renderers import render_source_note, staged_source_note_path, yaml_string
 from obsidian_librarian.review_report import render_review_report
@@ -39,6 +40,7 @@ from obsidian_librarian.vault import ObsidianVault
 VALID_INGEST_MODES = {"read-only", "draft"}
 VALID_PDF_CONVERTERS = {"none", "docling"}
 PdfConverterFunc = Callable[[str | Path], DoclingConversionResult]
+OCR_CLASSIFICATIONS = {"scanned_pdf"}
 
 
 @dataclass(frozen=True)
@@ -56,7 +58,9 @@ def ingest_inbox(
     mode: str = "draft",
     include_pdf: bool = False,
     pdf_converter: str = "none",
+    pdf_ocr: bool = False,
     pdf_converter_func: PdfConverterFunc | None = None,
+    pdf_ocr_converter_func: PdfConverterFunc | None = None,
 ) -> IngestRunResult:
     """Ingest supported inbox files into staged Obsidian notes."""
     if mode not in VALID_INGEST_MODES:
@@ -65,6 +69,10 @@ def ingest_inbox(
         raise ValueError(f"Unsupported PDF converter: {pdf_converter}")
     if pdf_converter != "none" and not include_pdf:
         raise ValueError("PDF conversion requires --include-pdf")
+    if pdf_ocr and not include_pdf:
+        raise ValueError("PDF OCR requires --include-pdf")
+    if pdf_ocr and pdf_converter != "docling":
+        raise ValueError("PDF OCR requires --pdf-converter docling")
 
     inbox_path = Path(inbox_root).expanduser().resolve(strict=False)
     config = LibrarianConfig.from_paths(vault_root)
@@ -91,8 +99,12 @@ def ingest_inbox(
         result.warnings.append(
             "PDF intake is classifier/manifest only; no PDF Markdown conversion or OCR was run."
         )
-    if include_pdf and pdf_converter == "docling":
+    if include_pdf and pdf_converter == "docling" and not pdf_ocr:
         result.warnings.append("PDF conversion uses Docling; OCR remains disabled and deferred.")
+    if include_pdf and pdf_converter == "docling" and pdf_ocr:
+        result.warnings.append(
+            "PDF conversion uses Docling; OCR is explicitly enabled for scanned PDFs only."
+        )
 
     if mode == "read-only":
         result.warnings.append("Read-only mode: no staged notes or reports were written.")
@@ -112,12 +124,15 @@ def ingest_inbox(
 
     if pdf_converter == "docling":
         converter = pdf_converter_func or convert_pdf_with_docling
+        ocr_converter = pdf_ocr_converter_func or convert_pdf_with_docling_ocr
         pdf_manifests = convert_pdf_manifests(
             pdf_manifests,
             inbox_path,
             vault,
             converter,
+            ocr_converter,
             result,
+            pdf_ocr=pdf_ocr,
         )
         result.pdf_manifests = pdf_manifests
 
@@ -139,12 +154,16 @@ def convert_pdf_manifests(
     inbox_path: Path,
     vault: ObsidianVault,
     converter: PdfConverterFunc,
+    ocr_converter: PdfConverterFunc,
     result: IngestRunResult,
+    *,
+    pdf_ocr: bool = False,
 ) -> list[PdfManifest]:
     """Convert eligible PDF manifests with Docling and write staged artifacts."""
     converted: list[PdfManifest] = []
     for manifest in manifests:
-        if manifest.status not in {"staged", "needs_review"}:
+        use_ocr = should_run_pdf_ocr(manifest, pdf_ocr=pdf_ocr)
+        if manifest.status not in {"staged", "needs_review"} and not use_ocr:
             converted.append(manifest)
             continue
 
@@ -153,11 +172,13 @@ def convert_pdf_manifests(
         json_relative = staged_pdf_structured_json_path(manifest)
 
         try:
-            conversion = converter(source_pdf)
+            conversion = ocr_converter(source_pdf) if use_ocr else converter(source_pdf)
         except PdfDependencyError as exc:
             raise ValueError(str(exc)) from exc
         except PdfConversionError as exc:
-            converted.append(mark_pdf_conversion_failed(manifest, str(exc)))
+            converted.append(
+                mark_pdf_conversion_failed(manifest, str(exc), ocr_enabled=use_ocr)
+            )
             continue
 
         json_write = vault.write_staged_text_unique(json_relative, conversion.structured_json)
@@ -169,6 +190,7 @@ def convert_pdf_manifests(
             structured_relative=json_write.path.relative_to(vault.staging_root),
             table_relatives=table_paths,
             asset_relatives=asset_paths,
+            ocr_enabled=use_ocr,
         )
         markdown_write = vault.write_staged_text_unique(markdown_relative, markdown_content)
         result.generated.append(
@@ -187,10 +209,16 @@ def convert_pdf_manifests(
                 json_write.path.relative_to(vault.staging_root),
                 table_paths,
                 asset_dir,
+                ocr_enabled=use_ocr,
             )
         )
 
     return converted
+
+
+def should_run_pdf_ocr(manifest: PdfManifest, *, pdf_ocr: bool) -> bool:
+    """Return true when explicit OCR should run for this classified PDF."""
+    return pdf_ocr and manifest.classification in OCR_CLASSIFICATIONS
 
 
 def write_pdf_table_sidecars(
@@ -239,15 +267,26 @@ def mark_pdf_docling_converted(
     json_relative: Path,
     table_relatives: tuple[Path, ...] = (),
     asset_dir_relative: Path | None = None,
+    ocr_enabled: bool = False,
 ) -> PdfManifest:
     """Return a manifest updated with Docling output paths."""
+    warnings = (*manifest.extraction.warnings, *_pdf_asset_quality_warnings(conversion))
+    if ocr_enabled:
+        warnings = (
+            *warnings,
+            PdfWarning(
+                "ocr_review_required",
+                "OCR was explicitly enabled; output requires review against the source PDF.",
+            ),
+        )
     return replace(
         manifest,
+        status="needs_review" if ocr_enabled else manifest.status,
         extraction=PdfExtraction(
-            method="docling",
+            method="ocr" if ocr_enabled else "docling",
             engine_version=conversion.engine_version,
-            ocr_enabled=False,
-            warnings=(*manifest.extraction.warnings, *_pdf_asset_quality_warnings(conversion)),
+            ocr_enabled=ocr_enabled,
+            warnings=warnings,
         ),
         outputs=PdfOutputs(
             root=manifest.outputs.root,
@@ -259,16 +298,22 @@ def mark_pdf_docling_converted(
     )
 
 
-def mark_pdf_conversion_failed(manifest: PdfManifest, message: str) -> PdfManifest:
+def mark_pdf_conversion_failed(
+    manifest: PdfManifest,
+    message: str,
+    *,
+    ocr_enabled: bool = False,
+) -> PdfManifest:
     """Return a manifest updated with a safe conversion failure."""
-    warnings = (*manifest.extraction.warnings, PdfWarning("docling_failed", message))
+    warning_code = "ocr_failed" if ocr_enabled else "docling_failed"
+    warnings = (*manifest.extraction.warnings, PdfWarning(warning_code, message))
     return replace(
         manifest,
         status="failed",
         extraction=PdfExtraction(
-            method="docling",
+            method="ocr" if ocr_enabled else "docling",
             engine_version=None,
-            ocr_enabled=False,
+            ocr_enabled=ocr_enabled,
             warnings=warnings,
         ),
     )
@@ -280,8 +325,20 @@ def render_pdf_docling_note(
     structured_relative: Path | None = None,
     table_relatives: tuple[Path, ...] = (),
     asset_relatives: tuple[WrittenPdfAsset, ...] = (),
+    ocr_enabled: bool = False,
 ) -> str:
     """Wrap Docling Markdown in a staged Obsidian source note."""
+    confidence = "ocr-derived-needs-review" if ocr_enabled else "source-backed"
+    extraction_method = "ocr" if ocr_enabled else "docling"
+    ocr_frontmatter = "true" if ocr_enabled else "false"
+    review_required_frontmatter = "review_required: true\n" if ocr_enabled else ""
+    ocr_warning = (
+        "## OCR warning\n\n"
+        "This note contains OCR-derived extraction from a scanned PDF. "
+        "Review against the original PDF before promotion.\n\n"
+        if ocr_enabled
+        else ""
+    )
     return (
         "---\n"
         "type: \"source\"\n"
@@ -291,11 +348,13 @@ def render_pdf_docling_note(
         f"page_count: {manifest.page_count}\n"
         "project: \"unknown\"\n"
         "status: \"staged\"\n"
-        "confidence: \"source-backed\"\n"
-        "extraction_method: \"docling\"\n"
-        "ocr_enabled: false\n"
+        f"{review_required_frontmatter}"
+        f"confidence: \"{confidence}\"\n"
+        f"extraction_method: \"{extraction_method}\"\n"
+        f"ocr_enabled: {ocr_frontmatter}\n"
         "---\n\n"
         f"# {Path(manifest.source_path).stem}\n\n"
+        f"{ocr_warning}"
         "## Summary\n\n"
         "No generated overview. This staged note contains Docling extraction output only.\n\n"
         "## Key claims\n\n"

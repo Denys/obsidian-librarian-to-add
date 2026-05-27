@@ -25,6 +25,9 @@ llm = [
 pdf = [
   "docling>=2.70.0"
 ]
+ocr = [
+  "docling>=2.70.0"
+]
 
 [project.scripts]
 obsidian-librarian = "obsidian_librarian.cli:main"

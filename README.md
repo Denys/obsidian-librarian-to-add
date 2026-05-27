@@ -29,14 +29,17 @@ The project has moved beyond documentation-only setup.
 | 11.3b / 11.4a | Done, verified locally | Fixture-backed PDF acceptance gates plus structural table/assets sidecar preservation. |
 | 11.4d | Done, verified locally | Docling PDF pipeline options hardened with OCR disabled by configuration. |
 | 11.5 | Done, verified locally | Deterministic table/diagram quality gates, artifact links, and review-report sidecar visibility. |
+| 11.6 | Done, targeted verified locally | Explicit scanned-PDF OCR behind `--pdf-ocr`, with review-required staged output. |
 
-Current local verification with copied PDF fixtures present:
+Current local verification on the repo Python 3.14 venv:
 
-- `py -3.13 -m pytest`: 125 passed
-- `py -3.13 -m pytest tests/test_pdf_docling_real_fixtures.py -vv -s`: 7 passed
-- `py -3.13 -m ruff check .`: passed
-- `py -3.13 -m obsidian_librarian.cli --help`: passed
-- `py -3.13 evals/run_evals.py`: passed
+- `.venv314\Scripts\python.exe -m pytest --ignore=tests\test_pdf_docling_real_fixtures.py`: 128 passed, 1 skipped
+- `.venv314\Scripts\python.exe -m pytest tests/test_pdf_ingest.py tests/test_pdf_docling.py tests/test_pdf_validators.py -q`: 44 passed
+- `.venv314\Scripts\python.exe -m ruff check .`: passed
+- `.venv314\Scripts\python.exe -m obsidian_librarian.cli --help`: passed
+- `.venv314\Scripts\python.exe evals/run_evals.py`: passed
+
+Plain `python` currently resolves to Python 3.9 on this machine, which is below the project requirement (`>=3.10`) and fails before running checks.
 
 ## What works on the current implementation branch
 
@@ -47,6 +50,7 @@ obsidian-librarian ingest ./00_Inbox --vault . --mode draft
 obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling --pdf-ocr
 obsidian-librarian validate ./90_Staging
 obsidian-librarian review-quality ./90_Staging
 obsidian-librarian enrich ./90_Staging --extractor mock --mode read-only
@@ -63,7 +67,8 @@ Implemented behavior:
 - treats PDFs as unsupported unless `--include-pdf` is explicitly supplied;
 - with `--include-pdf`, classifies PDFs and writes deterministic manifest JSON sidecars;
 - with `--pdf-converter docling`, converts eligible PDFs to staged Markdown and structured JSON;
-- configures Docling PDF conversion with `PdfPipelineOptions.do_ocr=False`;
+- configures normal Docling PDF conversion with `PdfPipelineOptions.do_ocr=False`;
+- supports explicit scanned-PDF OCR only with `--pdf-ocr` plus `--pdf-converter docling`;
 - preserves table-like Docling structures as staged `tables.json` sidecars when present;
 - writes Docling-exported assets under staged `assets/` folders when present;
 - links structured JSON, table sidecars, and staged assets from generated PDF notes;
@@ -91,12 +96,13 @@ The current implementation intentionally avoids high-risk behavior:
 - no overwrite by default;
 - no external services by default;
 - no LLM calls unless enrichment is explicitly requested;
-- no OCR;
+- no automatic OCR;
+- no hidden OCR fallback;
 - no embeddings;
 - no Agents SDK runtime;
 - no Git operations from the tool itself.
 
-PDF compatibility preserves the same safety posture: raw PDFs are read-only evidence, generated notes/manifests remain staged, OCR is explicit opt-in and deferred, and Docling integration is behind an optional PDF dependency path. The Docling adapter explicitly sets OCR off at PDF pipeline configuration time; if a future installed Docling package no longer exposes that switch, conversion fails instead of recording `ocr_enabled: false` without proof.
+PDF compatibility preserves the same safety posture: raw PDFs are read-only evidence, generated notes/manifests remain staged, OCR is explicit opt-in for scanned PDFs only, and Docling integration is behind optional PDF/OCR dependency paths. The normal Docling adapter explicitly sets OCR off at PDF pipeline configuration time; if a future installed Docling package no longer exposes that switch, conversion fails instead of recording `ocr_enabled: false` without proof. The OCR adapter uses a separate Docling pipeline builder, disables remote services and external plugins, records `ocr_enabled: true`, and marks the manifest `needs_review`.
 
 ## Local setup
 
@@ -134,7 +140,15 @@ Docling conversion is also explicit:
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling
 ```
 
-The Docling PDF path uses local Docling pipeline models for layout/table extraction and may download or load those non-OCR artifacts on first use, depending on the local cache. RapidOCR/OCR is not requested by this project path: `do_ocr` is forced to `False`, remote services are disabled, and `manifest.extraction.ocr_enabled` remains `false`.
+The normal Docling PDF path uses local Docling pipeline models for layout/table extraction and may download or load those non-OCR artifacts on first use, depending on the local cache. RapidOCR/OCR is not requested by this project path: `do_ocr` is forced to `False`, remote services are disabled, and `manifest.extraction.ocr_enabled` remains `false`.
+
+Scanned-PDF OCR is explicit and review-required:
+
+```bash
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling --pdf-ocr
+```
+
+OCR output stays under `90_Staging/pdf/<source>/`, preserves source PDFs read-only, records `extraction.method: "ocr"` and `extraction.ocr_enabled: true`, and marks the manifest `needs_review`. OCR output must be checked against the source PDF before promotion.
 
 For a detailed usage flow and PVplant-combo suggestions, see `docs/13_usage_manual.md`.
 
@@ -180,7 +194,7 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-Phase 11.6 remains optional and deferred: add explicit OCR only when it has its own dependency path, CLI flag, confidence metadata, review warnings, and no source-PDF mutation. Embeddings/RAG remain deferred until deterministic PDF intake stays stable on real fixtures.
+Phase 11.6 is implemented as explicit, review-required OCR for scanned PDFs. Embeddings/RAG remain deferred until deterministic PDF intake and OCR review workflows stay stable on real fixtures.
 
 
 ## Optional LLM enrichment (Phase 9)

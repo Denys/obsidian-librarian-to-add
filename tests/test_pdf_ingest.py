@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from obsidian_librarian.cli import main as cli_main
 from obsidian_librarian.ingest import ingest_inbox
+from obsidian_librarian.models import IngestRunResult
 from obsidian_librarian.note_quality import review_note_quality
 from obsidian_librarian.pdf_docling import DoclingConversionResult
+from obsidian_librarian.validators import validate_path
 
 
 def digital_pdf_bytes() -> bytes:
@@ -18,6 +22,20 @@ def digital_pdf_bytes() -> bytes:
         b"BT /F1 12 Tf 72 720 Td "
         b"(This is deterministic PDF text for Phase 11 tests) Tj ET\n"
         b"endstream\nendobj\n%%EOF\n"
+    )
+
+
+def scanned_pdf_bytes() -> bytes:
+    return (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+        b"3 0 obj\n"
+        b"<< /Type /Page /Parent 2 0 R "
+        b"/Resources << /XObject << /Im1 4 0 R >> >> >>\n"
+        b"endobj\n"
+        b"4 0 obj\n<< /Type /XObject /Subtype /Image /Width 10 /Height 10 >>\nendobj\n"
+        b"%%EOF\n"
     )
 
 
@@ -125,6 +143,95 @@ def test_include_pdf_docling_writes_markdown_json_and_manifest(tmp_path):
     assert quality.passed is True
 
 
+def test_pdf_ocr_requires_include_pdf(tmp_path):
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+
+    with pytest.raises(ValueError, match="PDF OCR requires --include-pdf"):
+        ingest_inbox(inbox, tmp_path, mode="read-only", pdf_ocr=True)
+
+
+def test_pdf_ocr_requires_docling_converter(tmp_path):
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+
+    with pytest.raises(ValueError, match="PDF OCR requires --pdf-converter docling"):
+        ingest_inbox(inbox, tmp_path, mode="read-only", include_pdf=True, pdf_ocr=True)
+
+
+def test_scanned_pdf_docling_without_ocr_remains_deferred(tmp_path):
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+    (inbox / "scan.pdf").write_bytes(scanned_pdf_bytes())
+
+    def fail_if_called(path):
+        raise AssertionError("converter should not run for OCR-deferred scanned PDF")
+
+    ingest_inbox(
+        inbox,
+        tmp_path,
+        mode="draft",
+        include_pdf=True,
+        pdf_converter="docling",
+        pdf_converter_func=fail_if_called,
+    )
+
+    root = tmp_path / "90_Staging" / "pdf" / "scan"
+    manifest_payload = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest_payload["status"] == "skipped"
+    assert manifest_payload["classification"] == "scanned_pdf"
+    assert manifest_payload["extraction"]["ocr_enabled"] is False
+    assert [warning["code"] for warning in manifest_payload["extraction"]["warnings"]] == [
+        "ocr_needed"
+    ]
+    assert not (root / "source.md").exists()
+    assert not (root / "docling.json").exists()
+
+
+def test_scanned_pdf_docling_ocr_writes_review_required_outputs(tmp_path):
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+    (inbox / "scan.pdf").write_bytes(scanned_pdf_bytes())
+
+    def fake_ocr_converter(path):
+        return DoclingConversionResult(
+            markdown="OCR extracted text Sentinel-OCR",
+            structured_json='{"pages": 1, "ocr": true}\n',
+            engine_version="mock-docling-ocr",
+        )
+
+    result = ingest_inbox(
+        inbox,
+        tmp_path,
+        mode="draft",
+        include_pdf=True,
+        pdf_converter="docling",
+        pdf_ocr=True,
+        pdf_ocr_converter_func=fake_ocr_converter,
+    )
+
+    root = tmp_path / "90_Staging" / "pdf" / "scan"
+    manifest_payload = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    markdown = (root / "source.md").read_text(encoding="utf-8")
+
+    assert (root / "docling.json").exists()
+    assert result.pdf_manifests[0].status == "needs_review"
+    assert manifest_payload["status"] == "needs_review"
+    assert manifest_payload["extraction"]["method"] == "ocr"
+    assert manifest_payload["extraction"]["ocr_enabled"] is True
+    assert "ocr_review_required" in {
+        warning["code"] for warning in manifest_payload["extraction"]["warnings"]
+    }
+    assert "OCR warning" in markdown
+    assert "OCR extracted text Sentinel-OCR" in markdown
+    assert "status: \"staged\"" in markdown
+    assert "review_required: true" in markdown
+    assert "confidence: \"ocr-derived-needs-review\"" in markdown
+    assert "extraction_method: \"ocr\"" in markdown
+    assert "ocr_enabled: true" in markdown
+    assert validate_path(tmp_path / "90_Staging").passed is True
+
+
 def test_pdf_converter_requires_include_pdf(tmp_path):
     inbox = tmp_path / "00_Inbox"
     inbox.mkdir()
@@ -156,3 +263,59 @@ def test_cli_include_pdf_flag_writes_manifest(tmp_path):
 
     assert exit_code == 0
     assert (tmp_path / "90_Staging" / "pdf" / "manual" / "manifest.json").exists()
+
+
+def test_cli_pdf_ocr_requires_include_pdf(tmp_path, capsys):
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+
+    exit_code = cli_main(
+        [
+            "ingest",
+            str(inbox),
+            "--vault",
+            str(tmp_path),
+            "--mode",
+            "draft",
+            "--pdf-ocr",
+        ]
+    )
+
+    assert exit_code == 2
+    assert "PDF OCR requires --include-pdf" in capsys.readouterr().out
+
+
+def test_cli_pdf_ocr_passes_flag_to_ingest(tmp_path, monkeypatch):
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+    captured = {}
+
+    def fake_ingest(inbox_root, vault_root, **kwargs):
+        captured.update(kwargs)
+        return IngestRunResult(
+            inbox_root=inbox_root,
+            vault_root=vault_root,
+            mode=kwargs["mode"],
+        )
+
+    monkeypatch.setattr("obsidian_librarian.cli.ingest_inbox", fake_ingest)
+
+    exit_code = cli_main(
+        [
+            "ingest",
+            str(inbox),
+            "--vault",
+            str(tmp_path),
+            "--mode",
+            "draft",
+            "--include-pdf",
+            "--pdf-converter",
+            "docling",
+            "--pdf-ocr",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured["include_pdf"] is True
+    assert captured["pdf_converter"] == "docling"
+    assert captured["pdf_ocr"] is True

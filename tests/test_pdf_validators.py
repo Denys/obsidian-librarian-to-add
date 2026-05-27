@@ -17,6 +17,7 @@ def make_manifest(
     *,
     status: str = "staged",
     method: str = "classifier_probe",
+    ocr_enabled: bool = False,
     page_count: int = 1,
     source_hash: str = HASH,
     outputs: dict[str, object] | None = None,
@@ -40,7 +41,7 @@ def make_manifest(
         "extraction": {
             "method": method,
             "engine_version": "test",
-            "ocr_enabled": False,
+            "ocr_enabled": ocr_enabled,
             "warnings": [],
         },
         "outputs": outputs if outputs is not None else {"root": f"pdf/{folder}"},
@@ -86,6 +87,43 @@ def write_docling_outputs(staging: Path, folder: str = "manual") -> dict[str, ob
     }
 
 
+def write_ocr_outputs(staging: Path, folder: str = "scan") -> dict[str, object]:
+    root = staging / "pdf" / folder
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "source.md").write_text(
+        "---\n"
+        "type: \"source\"\n"
+        "source_kind: \"pdf\"\n"
+        f"source_path: \"{folder}.pdf\"\n"
+        f"source_hash: \"{HASH}\"\n"
+        "page_count: 1\n"
+        "status: \"staged\"\n"
+        "review_required: true\n"
+        "confidence: \"ocr-derived-needs-review\"\n"
+        "extraction_method: \"ocr\"\n"
+        "ocr_enabled: true\n"
+        "---\n\n"
+        "# Source\n\n"
+        "## OCR warning\n\nReview against original PDF.\n\n"
+        "## Summary\n\nText.\n\n"
+        "## Key claims\n\nText.\n\n"
+        "## Action items\n\nNone.\n\n"
+        "## Open questions\n\nNone.\n\n"
+        "## Generated sidecars\n\n"
+        "- Structured JSON: [docling.json](docling.json)\n\n"
+        "## Links\n\n- Source path.\n",
+        encoding="utf-8",
+    )
+    (root / "docling.json").write_text('{"pages": 1, "ocr": true}\n', encoding="utf-8")
+    return {
+        "root": f"pdf/{folder}",
+        "markdown_note": f"pdf/{folder}/source.md",
+        "json_sidecar": f"pdf/{folder}/docling.json",
+        "table_sidecars": [],
+        "asset_dir": None,
+    }
+
+
 def test_classifier_probe_manifest_requires_only_manifest(tmp_path: Path) -> None:
     staging = tmp_path / "90_Staging"
     make_manifest(staging)
@@ -106,6 +144,44 @@ def test_docling_manifest_requires_markdown_and_json_outputs(tmp_path: Path) -> 
 
     assert summary.passed is True
     assert len(summary.checked_manifests) == 1
+
+
+def test_ocr_manifest_accepts_review_required_outputs(tmp_path: Path) -> None:
+    staging = tmp_path / "90_Staging"
+    outputs = write_ocr_outputs(staging)
+    make_manifest(
+        staging,
+        "scan",
+        status="needs_review",
+        method="ocr",
+        ocr_enabled=True,
+        outputs=outputs,
+    )
+
+    summary = validate_pdf_staging_path(staging)
+
+    assert summary.passed is True
+    assert len(summary.checked_manifests) == 1
+
+
+def test_ocr_manifest_must_be_review_required(tmp_path: Path) -> None:
+    staging = tmp_path / "90_Staging"
+    outputs = write_ocr_outputs(staging)
+    make_manifest(
+        staging,
+        "scan",
+        status="staged",
+        method="ocr",
+        ocr_enabled=True,
+        outputs=outputs,
+    )
+
+    summary = validate_pdf_staging_path(staging)
+
+    assert summary.passed is False
+    assert "OCR extraction requires status needs_review" in "\n".join(
+        issue.message for issue in summary.issues
+    )
 
 
 def test_docling_manifest_reports_missing_conversion_outputs(tmp_path: Path) -> None:

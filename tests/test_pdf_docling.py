@@ -9,6 +9,7 @@ from obsidian_librarian.pdf_docling import (
     PdfConversionError,
     PdfDependencyError,
     convert_pdf_with_docling,
+    convert_pdf_with_docling_ocr,
 )
 
 
@@ -38,6 +39,12 @@ class FakePdfPipelineOptions:
         self.generate_picture_images = False
         self.do_picture_classification = True
         self.do_picture_description = True
+        self.ocr_options = None
+
+
+class FakeOcrAutoOptions:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
 
 
 class FakePdfFormatOption:
@@ -63,6 +70,7 @@ def patch_fake_docling_pdf_format_api(monkeypatch):
             input_format=FakeInputFormat,
             pdf_format_option_cls=FakePdfFormatOption,
             pdf_pipeline_options_cls=FakePdfPipelineOptions,
+            ocr_options_cls=FakeOcrAutoOptions,
         ),
     )
 
@@ -107,12 +115,49 @@ def test_convert_pdf_with_docling_disables_ocr_in_pdf_pipeline_options(
     assert pipeline_options.do_picture_description is False
 
 
+def test_convert_pdf_with_docling_ocr_enables_ocr_without_remote_services(
+    monkeypatch,
+    tmp_path,
+):
+    source = tmp_path / "fixture.pdf"
+    source.write_bytes(b"%PDF-1.4\n")
+
+    monkeypatch.setattr(pdf_docling, "_load_docling_converter", lambda: FakeConverter)
+    patch_fake_docling_pdf_format_api(monkeypatch)
+
+    result = convert_pdf_with_docling_ocr(source)
+
+    format_options = FakeConverter.init_kwargs["format_options"]
+    pipeline_options = format_options[FakeInputFormat.PDF].pipeline_options
+    assert result.markdown.startswith("# Converted")
+    assert pipeline_options.do_ocr is True
+    assert pipeline_options.do_table_structure is True
+    assert pipeline_options.generate_picture_images is True
+    assert pipeline_options.enable_remote_services is False
+    assert pipeline_options.allow_external_plugins is False
+    assert pipeline_options.do_picture_classification is False
+    assert pipeline_options.do_picture_description is False
+    assert isinstance(pipeline_options.ocr_options, FakeOcrAutoOptions)
+    assert pipeline_options.ocr_options.kwargs == {
+        "lang": ["en"],
+        "force_full_page_ocr": True,
+    }
+
+
 def test_docling_pdf_pipeline_options_require_disable_ocr_support() -> None:
     class MissingOcrPipelineOptions:
         pass
 
     with pytest.raises(PdfDependencyError, match="cannot guarantee OCR disabled"):
         pdf_docling._build_docling_pdf_pipeline_options(MissingOcrPipelineOptions)
+
+
+def test_docling_ocr_pipeline_options_require_enable_ocr_support() -> None:
+    class MissingOcrPipelineOptions:
+        pass
+
+    with pytest.raises(PdfDependencyError, match="cannot guarantee OCR enabled"):
+        pdf_docling._build_docling_ocr_pdf_pipeline_options(MissingOcrPipelineOptions)
 
 
 def test_convert_pdf_with_docling_propagates_missing_ocr_switch(

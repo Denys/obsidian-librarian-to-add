@@ -71,6 +71,8 @@ def write_docling_outputs(staging: Path, folder: str = "manual") -> dict[str, ob
         "## Key claims\n\nText.\n\n"
         "## Action items\n\nNone.\n\n"
         "## Open questions\n\nNone.\n\n"
+        "## Generated sidecars\n\n"
+        "- Structured JSON: [docling.json](docling.json)\n\n"
         "## Links\n\n- Source path.\n",
         encoding="utf-8",
     )
@@ -219,3 +221,147 @@ def test_validate_path_integrates_pdf_artifact_validation(tmp_path: Path) -> Non
     assert summary.passed is False
     assert len(summary.checked_pdf_manifests) == 1
     assert any("PDF artifact validation" in issue.message for issue in summary.issues)
+
+
+def test_table_sidecar_payload_must_match_docling_json_path(tmp_path: Path) -> None:
+    staging = tmp_path / "90_Staging"
+    outputs = write_docling_outputs(staging)
+    root = staging / "pdf" / "manual"
+    docling_payload = {
+        "body": {
+            "tables": [
+                {"cells": [["Parameter", "Value"], ["Vmax", "600V"]]},
+            ],
+        },
+    }
+    table_sidecar = {
+        "schema_version": 1,
+        "source": "docling_structured_export",
+        "tables": [
+            {
+                "path": "$.body.tables",
+                "payload": docling_payload["body"]["tables"],
+            },
+        ],
+    }
+    (root / "docling.json").write_text(json.dumps(docling_payload), encoding="utf-8")
+    (root / "tables.json").write_text(json.dumps(table_sidecar), encoding="utf-8")
+    outputs["table_sidecars"] = ["pdf/manual/tables.json"]
+    (root / "source.md").write_text(
+        (root / "source.md").read_text(encoding="utf-8")
+        .replace(
+            "- Structured JSON: [docling.json](docling.json)",
+            "- Structured JSON: [docling.json](docling.json)\n"
+            "- Tables: [tables.json](tables.json)",
+        ),
+        encoding="utf-8",
+    )
+    make_manifest(staging, method="docling", outputs=outputs)
+
+    summary = validate_pdf_staging_path(staging)
+
+    assert summary.passed is True
+
+
+def test_table_sidecar_payload_mismatch_fails_validation(tmp_path: Path) -> None:
+    staging = tmp_path / "90_Staging"
+    outputs = write_docling_outputs(staging)
+    root = staging / "pdf" / "manual"
+    (root / "docling.json").write_text(
+        json.dumps({"body": {"tables": [{"cells": [["Parameter"], ["Vmax"]]}]}}),
+        encoding="utf-8",
+    )
+    (root / "tables.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source": "docling_structured_export",
+                "tables": [
+                    {
+                        "path": "$.body.tables",
+                        "payload": [{"cells": [["Wrong"], ["Data"]]}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    outputs["table_sidecars"] = ["pdf/manual/tables.json"]
+    (root / "source.md").write_text(
+        (root / "source.md").read_text(encoding="utf-8")
+        .replace(
+            "- Structured JSON: [docling.json](docling.json)",
+            "- Structured JSON: [docling.json](docling.json)\n"
+            "- Tables: [tables.json](tables.json)",
+        ),
+        encoding="utf-8",
+    )
+    make_manifest(staging, method="docling", outputs=outputs)
+
+    summary = validate_pdf_staging_path(staging)
+
+    assert summary.passed is False
+    messages = "\n".join(issue.message for issue in summary.issues)
+    assert "tables.json table payload does not match docling.json at $.body.tables" in messages
+
+
+def test_malformed_table_sidecar_schema_fails_validation(tmp_path: Path) -> None:
+    staging = tmp_path / "90_Staging"
+    outputs = write_docling_outputs(staging)
+    root = staging / "pdf" / "manual"
+    (root / "tables.json").write_text(
+        json.dumps({"schema_version": 1, "source": "docling_structured_export", "tables": []}),
+        encoding="utf-8",
+    )
+    outputs["table_sidecars"] = ["pdf/manual/tables.json"]
+    (root / "source.md").write_text(
+        (root / "source.md").read_text(encoding="utf-8")
+        .replace(
+            "- Structured JSON: [docling.json](docling.json)",
+            "- Structured JSON: [docling.json](docling.json)\n"
+            "- Tables: [tables.json](tables.json)",
+        ),
+        encoding="utf-8",
+    )
+    make_manifest(staging, method="docling", outputs=outputs)
+
+    summary = validate_pdf_staging_path(staging)
+
+    assert summary.passed is False
+    messages = "\n".join(issue.message for issue in summary.issues)
+    assert "tables.json tables must be a non-empty list" in messages
+
+
+def test_pdf_markdown_must_link_manifest_sidecars_and_assets(tmp_path: Path) -> None:
+    staging = tmp_path / "90_Staging"
+    outputs = write_docling_outputs(staging)
+    root = staging / "pdf" / "manual"
+    asset_dir = root / "assets"
+    asset_dir.mkdir()
+    (asset_dir / "page-001-figure-001.png").write_bytes(b"fake-png")
+    outputs["asset_dir"] = "pdf/manual/assets"
+    make_manifest(staging, method="docling", outputs=outputs)
+
+    summary = validate_pdf_staging_path(staging)
+
+    assert summary.passed is False
+    messages = "\n".join(issue.message for issue in summary.issues)
+    assert "PDF Markdown does not link asset: assets/page-001-figure-001.png" in messages
+
+
+def test_pdf_markdown_rejects_sidecar_links_that_escape_artifact_dir(tmp_path: Path) -> None:
+    staging = tmp_path / "90_Staging"
+    outputs = write_docling_outputs(staging)
+    root = staging / "pdf" / "manual"
+    (root / "source.md").write_text(
+        (root / "source.md").read_text(encoding="utf-8")
+        + "\n- Unsafe: [outside](../outside/tables.json)\n",
+        encoding="utf-8",
+    )
+    make_manifest(staging, method="docling", outputs=outputs)
+
+    summary = validate_pdf_staging_path(staging)
+
+    assert summary.passed is False
+    messages = "\n".join(issue.message for issue in summary.issues)
+    assert "PDF Markdown link escapes artifact directory: ../outside/tables.json" in messages

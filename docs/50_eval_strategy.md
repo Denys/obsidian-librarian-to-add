@@ -93,14 +93,23 @@ PDF compatibility must start with deterministic extraction-risk control before a
 - PDF notes with empty extracted content fail validation.
 - Warnings distinguish low-confidence extraction from blocking schema errors.
 
-### Phase 11.4 table/figure evals
+### Phase 11.4 table/figure sidecar evals
 
 - Table sidecars are linked from PDF notes rather than flattened blindly into prose.
 - Referenced table/asset sidecars must exist under staging.
 - Extracted assets remain under `90_Staging/pdf/assets/`.
 - Review reports list sidecars/assets and extraction warnings.
 
-### Phase 11.5 OCR evals
+### Phase 11.5 table/diagram quality-gate evals
+
+- Table sidecars are valid JSON with non-empty table entries.
+- Table sidecar payloads match the referenced `docling.json` paths.
+- Generated PDF notes link declared structured JSON, table sidecars, and staged assets.
+- Optional copied table-heavy fixtures produce non-empty table sidecars when present.
+- Optional copied diagram-heavy fixtures produce staged assets and note links when present.
+- OCR remains disabled.
+
+### Phase 11.6 OCR evals
 
 - OCR is disabled by default.
 - Scanned PDFs are skipped or warned without explicit `--ocr`.

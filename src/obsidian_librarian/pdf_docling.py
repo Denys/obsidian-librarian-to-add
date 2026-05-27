@@ -24,6 +24,9 @@ class DoclingAsset:
 
     relative_path: Path
     content: bytes
+    kind: str | None = None
+    page_number: int | None = None
+    caption: str | None = None
 
 
 @dataclass(frozen=True)
@@ -92,13 +95,16 @@ def _extract_docling_assets(document: Any) -> tuple[DoclingAsset, ...]:
     candidates = list(_iter_docling_asset_candidates(document))
     assets: list[DoclingAsset] = []
     for index, candidate in enumerate(candidates, start=1):
-        payload = _asset_bytes(candidate)
+        payload = _asset_bytes(candidate, document)
         if not payload:
             continue
         assets.append(
             DoclingAsset(
                 relative_path=_safe_asset_name(candidate, index),
                 content=payload,
+                kind=_asset_kind(candidate),
+                page_number=_asset_page(candidate),
+                caption=_asset_caption(candidate, document),
             )
         )
     return tuple(assets)
@@ -124,21 +130,26 @@ def _iter_candidate_values(value: Any):
     yield value
 
 
-def _asset_bytes(candidate: Any) -> bytes | None:
+def _asset_bytes(candidate: Any, document: Any) -> bytes | None:
     for key in ("content", "bytes", "data", "image_bytes"):
         raw = getattr(candidate, key, None)
         if isinstance(raw, bytes) and raw:
             return raw
 
     image = getattr(candidate, "image", None) or getattr(candidate, "pil_image", None)
-    if image is not None and hasattr(image, "save"):
-        output = BytesIO()
+    payload = _image_to_png_bytes(image)
+    if payload:
+        return payload
+
+    get_image = getattr(candidate, "get_image", None)
+    if callable(get_image):
         try:
-            image.save(output, format="PNG")
+            image = get_image(document)
         except Exception:
-            return None
-        payload = output.getvalue()
-        return payload if payload else None
+            image = None
+        payload = _image_to_png_bytes(image)
+        if payload:
+            return payload
 
     pathish = getattr(candidate, "path", None) or getattr(candidate, "file", None)
     if isinstance(pathish, (str, Path)):
@@ -152,20 +163,38 @@ def _asset_bytes(candidate: Any) -> bytes | None:
     return None
 
 
-def _safe_asset_name(candidate: Any, index: int) -> Path:
-    label = str(getattr(candidate, "kind", "")).lower()
-    if "figure" in label:
-        kind = "figure"
-    elif "image" in label:
-        kind = "image"
-    else:
-        kind = "figure" if hasattr(candidate, "caption") else "image"
+def _image_to_png_bytes(image: Any) -> bytes | None:
+    if image is None or not hasattr(image, "save"):
+        return None
+    output = BytesIO()
+    try:
+        image.save(output, format="PNG")
+    except Exception:
+        return None
+    payload = output.getvalue()
+    return payload if payload else None
 
+
+def _safe_asset_name(candidate: Any, index: int) -> Path:
+    kind = _asset_kind(candidate) or "image"
     page = _asset_page(candidate)
     stem = f"{kind}-{index:03d}.png"
     if page is not None and page > 0:
         stem = f"page-{page:03d}-{kind}-{index:03d}.png"
     return Path(stem)
+
+
+def _asset_kind(candidate: Any) -> str:
+    label = str(
+        getattr(candidate, "kind", None) or getattr(candidate, "label", None) or ""
+    ).lower()
+    if "figure" in label or "picture" in label:
+        return "figure"
+    if "image" in label:
+        return "image"
+    if hasattr(candidate, "caption") or hasattr(candidate, "caption_text"):
+        return "figure"
+    return "image"
 
 
 def _asset_page(candidate: Any) -> int | None:
@@ -175,6 +204,37 @@ def _asset_page(candidate: Any) -> int | None:
             return value
         if isinstance(value, str) and value.isdigit() and int(value) > 0:
             return int(value)
+    prov = getattr(candidate, "prov", None)
+    if isinstance(prov, (list, tuple)) and prov:
+        return _asset_page(prov[0])
+    if prov is not None:
+        return _asset_page(prov)
+    return None
+
+
+def _asset_caption(candidate: Any, document: Any) -> str | None:
+    caption_text = getattr(candidate, "caption_text", None)
+    if callable(caption_text):
+        try:
+            caption = str(caption_text(document)).strip()
+        except Exception:
+            caption = ""
+        if caption:
+            return caption
+
+    for key in ("caption", "text", "title"):
+        caption = getattr(candidate, key, None)
+        if isinstance(caption, str) and caption.strip():
+            return caption.strip()
+
+    captions = getattr(candidate, "captions", None)
+    if isinstance(captions, (list, tuple)) and captions:
+        first = captions[0]
+        if isinstance(first, str) and first.strip():
+            return first.strip()
+        text = getattr(first, "text", None)
+        if isinstance(text, str) and text.strip():
+            return text.strip()
     return None
 
 

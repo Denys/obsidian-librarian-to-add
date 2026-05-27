@@ -47,7 +47,8 @@ Rejected for the first implementation slice:
 | 11.2 | Planned | Docling digital-PDF conversion to staged Markdown/JSON | optional `pdf` dependency group | `90_Staging/` only |
 | 11.3 | Planned | PDF provenance validation and quality gates | internal validators/evals | none, except reports |
 | 11.4 | Planned | Tables, figures, and assets as sidecars | Docling export artifacts | `90_Staging/` sidecars/assets only |
-| 11.5 | Deferred | Explicit OCR path for scanned PDFs | optional `ocr` dependency group | staged OCR-derived notes/sidecars only |
+| 11.5 | Planned | Table and diagram quality gates | internal validators/evals | none, except reports |
+| 11.6 | Deferred | Explicit OCR path for scanned PDFs | optional `ocr` dependency group | staged OCR-derived notes/sidecars only |
 
 ## Phase 11.0 — Design/spec cleanup
 
@@ -198,7 +199,33 @@ Acceptance criteria:
 - review report lists extracted sidecars and extraction warnings;
 - validators can flag missing sidecars referenced by notes.
 
-## Phase 11.5 — Explicit OCR path
+## Phase 11.5 — Table and diagram quality gates
+
+Goal: make table and diagram preservation reviewable without adding semantic AI interpretation.
+
+Allowed:
+
+- validate `tables.json` schema and fidelity against `docling.json`;
+- require generated PDF notes to link declared JSON/table sidecars and staged assets;
+- preserve figure asset page/caption metadata when Docling exposes it;
+- report deterministic warnings for missing asset page/caption metadata.
+
+Not allowed:
+
+- no OCR;
+- no embeddings/RAG;
+- no figure interpretation by LLM as trusted evidence;
+- no semantic table scoring.
+
+Acceptance criteria:
+
+- malformed or mismatched table sidecars fail validation;
+- missing or escaping generated-note artifact links fail validation;
+- table-heavy copied fixtures enforce non-empty table sidecars when present;
+- diagram-heavy copied fixtures enforce staged asset presence when present;
+- review reports list generated PDF sidecars/assets and extraction warnings.
+
+## Phase 11.6 — Explicit OCR path
 
 Goal: support scanned PDFs only after digital-PDF intake is stable.
 

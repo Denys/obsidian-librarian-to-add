@@ -237,6 +237,9 @@ def test_extract_docling_assets_from_bytes() -> None:
     assert len(assets) == 1
     assert assets[0].relative_path.as_posix() == "page-001-image-001.png"
     assert assets[0].content == b"abc"
+    assert assets[0].kind == "image"
+    assert assets[0].page_number == 1
+    assert assets[0].caption is None
 
 
 def test_extract_docling_assets_from_pil_like_image() -> None:
@@ -249,6 +252,33 @@ def test_extract_docling_assets_from_pil_like_image() -> None:
     assert len(assets) == 1
     assert assets[0].relative_path.as_posix() == "page-002-figure-001.png"
     assert assets[0].content.startswith(b"\x89PNG")
+    assert assets[0].kind == "figure"
+    assert assets[0].page_number == 2
+
+
+def test_extract_docling_assets_from_get_image_with_caption_and_provenance() -> None:
+    class DoclingPictureLike:
+        kind = "figure"
+        prov = [types.SimpleNamespace(page_no=3)]
+
+        def get_image(self, document):
+            assert document is doc
+            return FakePngImage()
+
+        def caption_text(self, document):
+            assert document is doc
+            return "Schematic overview"
+
+    doc = types.SimpleNamespace(pictures=[DoclingPictureLike()])
+
+    assets = pdf_docling._extract_docling_assets(doc)
+
+    assert len(assets) == 1
+    assert assets[0].relative_path.as_posix() == "page-003-figure-001.png"
+    assert assets[0].content.startswith(b"\x89PNG")
+    assert assets[0].kind == "figure"
+    assert assets[0].page_number == 3
+    assert assets[0].caption == "Schematic overview"
 
 
 def test_safe_asset_name_rejects_unsafe_candidate_name() -> None:

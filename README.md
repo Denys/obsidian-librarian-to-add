@@ -28,6 +28,7 @@ The project has moved beyond documentation-only setup.
 | 11.3a | Done | Deterministic structural validation for staged PDF manifests and artifacts. |
 | 11.3b / 11.4a | Implemented on branch, pending CI | Fixture-backed PDF acceptance gates plus structural table/assets sidecar preservation. |
 | 11.4d | Implemented on branch, pending CI | Docling PDF pipeline options hardened with OCR disabled by configuration. |
+| 11.5 | Implemented on branch, pending CI | Deterministic table/diagram quality gates, artifact links, and review-report sidecar visibility. |
 
 ## What works on main / current implementation branch
 
@@ -57,6 +58,8 @@ Implemented behavior:
 - configures Docling PDF conversion with `PdfPipelineOptions.do_ocr=False`;
 - preserves table-like Docling structures as staged `tables.json` sidecars when present;
 - writes Docling-exported assets under staged `assets/` folders when present;
+- links structured JSON, table sidecars, and staged assets from generated PDF notes;
+- validates table sidecar fidelity against `docling.json`;
 - writes one staged PDF folder per source PDF under `90_Staging/pdf/<source-stem>/`;
 - validates staged PDF manifests and claimed artifacts through the existing `validate` command;
 - writes staged source notes under `90_Staging/`;
@@ -167,7 +170,7 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-After Phase 11.3b / 11.4a passes CI and review, decide whether real PVplant fixture coverage should be added through a submodule/checkout, then defer OCR and embeddings until the digital-PDF sidecar path is stable.
+After Phase 11.5 passes CI and review, keep OCR as optional Phase 11.6 and defer embeddings/RAG until the deterministic PDF quality gates stay stable on real fixtures.
 
 
 ## Optional LLM enrichment (Phase 9)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from obsidian_librarian.config import LibrarianConfig
@@ -39,6 +39,14 @@ from obsidian_librarian.vault import ObsidianVault
 VALID_INGEST_MODES = {"read-only", "draft"}
 VALID_PDF_CONVERTERS = {"none", "docling"}
 PdfConverterFunc = Callable[[str | Path], DoclingConversionResult]
+
+
+@dataclass(frozen=True)
+class WrittenPdfAsset:
+    """One staged PDF asset path with converter metadata."""
+
+    relative_path: Path
+    source: object
 
 
 def ingest_inbox(
@@ -152,16 +160,17 @@ def convert_pdf_manifests(
             converted.append(mark_pdf_conversion_failed(manifest, str(exc)))
             continue
 
+        json_write = vault.write_staged_text_unique(json_relative, conversion.structured_json)
+        table_paths = write_pdf_table_sidecars(manifest, conversion, vault)
+        asset_dir, asset_paths = write_pdf_assets(manifest, conversion, vault)
         markdown_content = render_pdf_docling_note(
             manifest,
             conversion.markdown,
-            tables_present=conversion.tables_json is not None,
-            assets_present=bool(conversion.assets),
+            structured_relative=json_write.path.relative_to(vault.staging_root),
+            table_relatives=table_paths,
+            asset_relatives=asset_paths,
         )
         markdown_write = vault.write_staged_text_unique(markdown_relative, markdown_content)
-        json_write = vault.write_staged_text_unique(json_relative, conversion.structured_json)
-        table_paths = write_pdf_table_sidecars(manifest, conversion, vault)
-        asset_dir = write_pdf_assets(manifest, conversion, vault)
         result.generated.append(
             GeneratedNote(
                 source_path=source_pdf,
@@ -203,19 +212,24 @@ def write_pdf_assets(
     manifest: PdfManifest,
     conversion: DoclingConversionResult,
     vault: ObsidianVault,
-) -> Path | None:
-    """Write optional PDF assets and return the staged asset directory path."""
+) -> tuple[Path | None, tuple[WrittenPdfAsset, ...]]:
+    """Write optional PDF assets and return staged asset directory and file paths."""
     if not conversion.assets:
-        return None
+        return None, ()
 
     asset_dir = staged_pdf_assets_dir_path(manifest)
-    wrote_any = False
+    written: list[WrittenPdfAsset] = []
     for asset in conversion.assets:
         if not asset.content:
             continue
-        vault.write_staged_bytes_unique(asset_dir / asset.relative_path, asset.content)
-        wrote_any = True
-    return asset_dir if wrote_any else None
+        write = vault.write_staged_bytes_unique(asset_dir / asset.relative_path, asset.content)
+        written.append(
+            WrittenPdfAsset(
+                relative_path=write.path.relative_to(vault.staging_root),
+                source=asset,
+            )
+        )
+    return (asset_dir if written else None), tuple(written)
 
 
 def mark_pdf_docling_converted(
@@ -233,7 +247,7 @@ def mark_pdf_docling_converted(
             method="docling",
             engine_version=conversion.engine_version,
             ocr_enabled=False,
-            warnings=manifest.extraction.warnings,
+            warnings=(*manifest.extraction.warnings, *_pdf_asset_quality_warnings(conversion)),
         ),
         outputs=PdfOutputs(
             root=manifest.outputs.root,
@@ -263,8 +277,9 @@ def mark_pdf_conversion_failed(manifest: PdfManifest, message: str) -> PdfManife
 def render_pdf_docling_note(
     manifest: PdfManifest,
     markdown: str,
-    tables_present: bool = False,
-    assets_present: bool = False,
+    structured_relative: Path | None = None,
+    table_relatives: tuple[Path, ...] = (),
+    asset_relatives: tuple[WrittenPdfAsset, ...] = (),
 ) -> str:
     """Wrap Docling Markdown in a staged Obsidian source note."""
     return (
@@ -290,8 +305,10 @@ def render_pdf_docling_note(
         "## Open questions\n\n"
         "Review extraction quality, page ordering, tables, figures, and units before promotion.\n\n"
         + _render_generated_sidecars_section(
-            tables_present=tables_present,
-            assets_present=assets_present,
+            markdown_relative=staged_pdf_markdown_path(manifest),
+            structured_relative=structured_relative,
+            table_relatives=table_relatives,
+            asset_relatives=asset_relatives,
         )
         + "## Extracted content\n\n"
         f"{markdown.strip()}\n\n"
@@ -300,12 +317,59 @@ def render_pdf_docling_note(
         f"- Source hash: `{manifest.source_hash}`\n"
     )
 
-def _render_generated_sidecars_section(*, tables_present: bool, assets_present: bool) -> str:
-    if not tables_present and not assets_present:
+
+def _pdf_asset_quality_warnings(conversion: DoclingConversionResult) -> tuple[PdfWarning, ...]:
+    warnings: list[PdfWarning] = []
+    for asset in conversion.assets:
+        if asset.page_number is None:
+            warnings.append(
+                PdfWarning(
+                    "asset_page_unknown",
+                    f"Asset {asset.relative_path.as_posix()} has no page reference.",
+                )
+            )
+        if asset.caption is None:
+            warnings.append(
+                PdfWarning(
+                    "asset_caption_missing",
+                    f"Asset {asset.relative_path.as_posix()} has no caption.",
+                )
+            )
+    return tuple(warnings)
+
+
+def _render_generated_sidecars_section(
+    *,
+    markdown_relative: Path,
+    structured_relative: Path | None,
+    table_relatives: tuple[Path, ...],
+    asset_relatives: tuple[WrittenPdfAsset, ...],
+) -> str:
+    if structured_relative is None and not table_relatives and not asset_relatives:
         return ""
-    lines = ["## Generated sidecars", "", "- Structured JSON: `docling.json`"]
-    if tables_present:
-        lines.append("- Tables: `tables.json`")
-    if assets_present:
-        lines.append("- Assets: `assets/`")
+    lines = ["## Generated sidecars", ""]
+    if structured_relative is not None:
+        lines.append(
+            f"- Structured JSON: [{structured_relative.name}]"
+            f"({_relative_markdown_link(markdown_relative, structured_relative)})"
+        )
+    for table_relative in table_relatives:
+        lines.append(
+            f"- Tables: [{table_relative.name}]"
+            f"({_relative_markdown_link(markdown_relative, table_relative)})"
+        )
+    for written_asset in asset_relatives:
+        asset = written_asset.source
+        kind = str(getattr(asset, "kind", None) or "asset").capitalize()
+        page_number = getattr(asset, "page_number", None)
+        page_label = f", page {page_number}" if page_number is not None else ""
+        caption = getattr(asset, "caption", None) or written_asset.relative_path.name
+        lines.append(
+            f"- {kind}{page_label}: [{caption}]"
+            f"({_relative_markdown_link(markdown_relative, written_asset.relative_path)})"
+        )
     return "\n".join(lines) + "\n\n"
+
+
+def _relative_markdown_link(markdown_relative: Path, target_relative: Path) -> str:
+    return target_relative.relative_to(markdown_relative.parent).as_posix()

@@ -18,6 +18,7 @@ PDF_ARTIFACT_FILENAMES = {
     "docling.json",
     "tables.json",
 }
+MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
 @dataclass(frozen=True)
@@ -168,6 +169,8 @@ def validate_pdf_manifest(
     status = payload.get("status")
     if method == "docling" and status not in {"failed", "skipped"}:
         issues.extend(_validate_docling_outputs_required(path, staging, outputs))
+        if outputs is not None:
+            issues.extend(_validate_docling_table_sidecars(path, staging, outputs))
 
     if outputs is not None and outputs.get("markdown_note") is not None:
         markdown_path = _resolve_optional_output_path(
@@ -179,6 +182,15 @@ def validate_pdf_manifest(
         )
         if markdown_path is not None and markdown_path.exists() and markdown_path.is_file():
             issues.extend(_validate_markdown_frontmatter(path, markdown_path, payload))
+            if method == "docling" and status not in {"failed", "skipped"}:
+                issues.extend(
+                    _validate_pdf_markdown_artifact_links(
+                        path,
+                        staging,
+                        outputs,
+                        markdown_path,
+                    )
+                )
 
     return issues
 
@@ -334,6 +346,213 @@ def _validate_docling_outputs_required(
     return issues
 
 
+def _validate_docling_table_sidecars(
+    manifest_path: Path,
+    staging_root: Path,
+    outputs: dict[str, Any],
+) -> list[PdfValidationIssue]:
+    table_values = outputs.get("table_sidecars") or outputs.get("tables") or []
+    if not isinstance(table_values, list):
+        return []
+    if not table_values:
+        return []
+
+    structured_value = outputs.get("json_sidecar") or outputs.get("structured_json")
+    structured_path = _resolve_existing_file(
+        manifest_path,
+        staging_root,
+        structured_value,
+        "outputs.json_sidecar",
+    )
+    if structured_path is None:
+        return []
+
+    structured_payload, issues = _read_json_object(structured_path, "docling.json")
+    if structured_payload is None:
+        return issues
+
+    for value in table_values:
+        table_path = _resolve_existing_file(
+            manifest_path,
+            staging_root,
+            value,
+            "outputs.table_sidecars",
+        )
+        if table_path is None:
+            continue
+        table_payload, table_issues = _read_json_object(table_path, table_path.name)
+        issues.extend(table_issues)
+        if table_payload is None:
+            continue
+        issues.extend(
+            _validate_table_sidecar_payload(
+                table_path,
+                table_payload,
+                structured_payload,
+            )
+        )
+    return issues
+
+
+def _validate_table_sidecar_payload(
+    table_path: Path,
+    payload: dict[str, Any],
+    structured_payload: Any,
+) -> list[PdfValidationIssue]:
+    issues: list[PdfValidationIssue] = []
+    if payload.get("schema_version") != 1:
+        issues.append(path_issue(table_path, f"{table_path.name} schema_version must be 1"))
+
+    if not isinstance(payload.get("source"), str) or not payload.get("source"):
+        issues.append(
+            path_issue(table_path, f"{table_path.name} source must be a non-empty string")
+        )
+
+    tables = payload.get("tables")
+    if not isinstance(tables, list) or not tables:
+        issues.append(path_issue(table_path, f"{table_path.name} tables must be a non-empty list"))
+        return issues
+
+    for index, table in enumerate(tables):
+        if not isinstance(table, dict):
+            issues.append(
+                path_issue(table_path, f"{table_path.name} tables[{index}] must be an object")
+            )
+            continue
+        table_ref = table.get("path")
+        table_payload = table.get("payload")
+        if not isinstance(table_ref, str) or not table_ref:
+            issues.append(
+                path_issue(table_path, f"{table_path.name} tables[{index}].path must be a string")
+            )
+            continue
+        if table_payload in (None, {}, []):
+            issues.append(
+                path_issue(
+                    table_path,
+                    f"{table_path.name} tables[{index}].payload must be non-empty",
+                )
+            )
+            continue
+
+        resolved, found = _resolve_json_path(structured_payload, table_ref)
+        if not found:
+            issues.append(
+                path_issue(
+                    table_path,
+                    f"{table_path.name} table path not found in docling.json: {table_ref}",
+                )
+            )
+        elif resolved != table_payload:
+            issues.append(
+                path_issue(
+                    table_path,
+                    f"{table_path.name} table payload does not match docling.json at {table_ref}",
+                )
+            )
+    return issues
+
+
+def _validate_pdf_markdown_artifact_links(
+    manifest_path: Path,
+    staging_root: Path,
+    outputs: dict[str, Any],
+    markdown_path: Path,
+) -> list[PdfValidationIssue]:
+    issues: list[PdfValidationIssue] = []
+    root = _resolve_existing_dir(manifest_path, staging_root, outputs.get("root"), "outputs.root")
+    if root is None:
+        return issues
+
+    content = markdown_path.read_text(encoding="utf-8")
+    linked_targets: set[str] = set()
+    for raw_target in MARKDOWN_LINK_RE.findall(content):
+        target = _clean_markdown_link_target(raw_target)
+        if not _is_pdf_artifact_link_target(target):
+            continue
+        if _is_unsafe_relative_path(target):
+            issues.append(
+                path_issue(
+                    markdown_path,
+                    f"PDF Markdown link escapes artifact directory: {target}",
+                )
+            )
+            continue
+        resolved = (markdown_path.parent / target).resolve(strict=False)
+        if not resolved.is_relative_to(root):
+            issues.append(
+                path_issue(
+                    markdown_path,
+                    f"PDF Markdown link escapes artifact directory: {target}",
+                )
+            )
+            continue
+        if not resolved.exists():
+            issues.append(
+                path_issue(markdown_path, f"PDF Markdown link target does not exist: {target}")
+            )
+            continue
+        linked_targets.add(_markdown_relative_path(markdown_path, resolved))
+
+    expected_files: list[Path] = []
+    structured = _resolve_existing_file(
+        manifest_path,
+        staging_root,
+        outputs.get("json_sidecar") or outputs.get("structured_json"),
+        "outputs.json_sidecar",
+    )
+    if structured is not None:
+        expected_files.append(structured)
+
+    table_values = outputs.get("table_sidecars") or outputs.get("tables") or []
+    if isinstance(table_values, list):
+        for value in table_values:
+            table_path = _resolve_existing_file(
+                manifest_path,
+                staging_root,
+                value,
+                "outputs.table_sidecars",
+            )
+            if table_path is not None:
+                expected_files.append(table_path)
+
+    for expected in expected_files:
+        expected_link = _markdown_relative_path(markdown_path, expected)
+        if expected_link not in linked_targets:
+            issues.append(
+                path_issue(
+                    markdown_path,
+                    f"PDF Markdown does not link artifact: {expected_link}",
+                )
+            )
+
+    asset_dir_value = outputs.get("asset_dir") or outputs.get("assets_dir")
+    if asset_dir_value is not None:
+        asset_dir = _resolve_existing_dir(
+            manifest_path,
+            staging_root,
+            asset_dir_value,
+            "outputs.asset_dir",
+        )
+        if asset_dir is not None:
+            asset_files = sorted(path for path in asset_dir.rglob("*") if path.is_file())
+            if not asset_files:
+                issues.append(path_issue(manifest_path, "outputs.asset_dir contains no files"))
+            elif not any(
+                _markdown_relative_path(markdown_path, asset_file) in linked_targets
+                for asset_file in asset_files
+            ):
+                expected_link = _markdown_relative_path(markdown_path, asset_files[0])
+                issues.append(
+                    path_issue(
+                        markdown_path,
+                        f"PDF Markdown does not link asset: {expected_link}",
+                    )
+                )
+
+    return issues
+
+
 def _validate_markdown_frontmatter(
     manifest_path: Path,
     markdown_path: Path,
@@ -362,6 +581,114 @@ def _validate_markdown_frontmatter(
                 )
             )
     return issues
+
+
+def _read_json_object(
+    path: Path,
+    label: str,
+) -> tuple[dict[str, Any] | None, list[PdfValidationIssue]]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return None, [PdfValidationIssue(path, f"{label} invalid JSON: {exc.msg}")]
+    except OSError as exc:
+        return None, [PdfValidationIssue(path, f"{label} cannot be read: {exc}")]
+    if not isinstance(payload, dict):
+        return None, [PdfValidationIssue(path, f"{label} must be a JSON object")]
+    return payload, []
+
+
+def _resolve_existing_file(
+    manifest_path: Path,
+    staging_root: Path,
+    value: Any,
+    field_name: str,
+) -> Path | None:
+    scratch: list[PdfValidationIssue] = []
+    resolved = _resolve_optional_output_path(
+        manifest_path,
+        staging_root,
+        value,
+        field_name,
+        scratch,
+    )
+    if resolved is None or not resolved.exists() or not resolved.is_file():
+        return None
+    return resolved
+
+
+def _resolve_existing_dir(
+    manifest_path: Path,
+    staging_root: Path,
+    value: Any,
+    field_name: str,
+) -> Path | None:
+    scratch: list[PdfValidationIssue] = []
+    resolved = _resolve_optional_output_path(
+        manifest_path,
+        staging_root,
+        value,
+        field_name,
+        scratch,
+    )
+    if resolved is None or not resolved.exists() or not resolved.is_dir():
+        return None
+    return resolved
+
+
+def _resolve_json_path(payload: Any, path: str) -> tuple[Any, bool]:
+    if path != "$" and not path.startswith("$.") and not path.startswith("$["):
+        return None, False
+    current = payload
+    index = 1
+    while index < len(path):
+        marker = path[index]
+        if marker == ".":
+            index += 1
+            start = index
+            while index < len(path) and path[index] not in ".[":
+                index += 1
+            key = path[start:index]
+            if not isinstance(current, dict) or key not in current:
+                return None, False
+            current = current[key]
+            continue
+        if marker == "[":
+            end = path.find("]", index)
+            if end == -1:
+                return None, False
+            raw_index = path[index + 1 : end]
+            if not raw_index.isdigit():
+                return None, False
+            item_index = int(raw_index)
+            if not isinstance(current, list) or item_index >= len(current):
+                return None, False
+            current = current[item_index]
+            index = end + 1
+            continue
+        return None, False
+    return current, True
+
+
+def _clean_markdown_link_target(target: str) -> str:
+    return target.split("#", 1)[0].split("?", 1)[0].strip()
+
+
+def _is_pdf_artifact_link_target(target: str) -> bool:
+    normalized = target.replace("\\", "/")
+    return (
+        normalized.endswith(".json")
+        or normalized.startswith("assets/")
+        or "/assets/" in normalized
+    )
+
+
+def _markdown_relative_path(markdown_path: Path, target: Path) -> str:
+    return (
+        target.resolve(strict=False)
+        .relative_to(markdown_path.parent.resolve(strict=False))
+        .as_posix()
+    )
 
 
 def _parse_simple_frontmatter(content: str) -> dict[str, str]:

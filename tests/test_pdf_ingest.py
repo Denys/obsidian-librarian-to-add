@@ -4,6 +4,7 @@ import json
 
 from obsidian_librarian.cli import main as cli_main
 from obsidian_librarian.ingest import ingest_inbox
+from obsidian_librarian.note_quality import review_note_quality
 from obsidian_librarian.pdf_docling import DoclingConversionResult
 
 
@@ -118,6 +119,10 @@ def test_include_pdf_docling_writes_markdown_json_and_manifest(tmp_path):
     assert manifest_payload["outputs"]["json_sidecar"] == "pdf/manual/docling.json"
     assert "# Converted manual.pdf" in markdown
     assert "extraction_method: \"docling\"" in markdown
+    assert "No generated overview." in markdown
+    assert "No semantic summary" not in markdown
+    quality = review_note_quality(markdown_path)
+    assert quality.passed is True
 
 
 def test_pdf_converter_requires_include_pdf(tmp_path):

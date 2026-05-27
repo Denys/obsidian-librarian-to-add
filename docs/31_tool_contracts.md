@@ -38,9 +38,9 @@ tool_name:
 - raw source files are never modified;
 - every write result is reported.
 
-## Planned PDF tools
+## PDF tools
 
-PDF compatibility is planned in `docs/11_pdf_compatibility_plan.md`. These contracts are design targets until the corresponding phase is implemented.
+PDF compatibility through Phase 11.5 is implemented in `docs/11_pdf_compatibility_plan.md`. OCR remains a deferred design target.
 
 | Tool | Purpose | Reads | Writes | Risk |
 |---|---|---|---|---:|
@@ -50,10 +50,10 @@ PDF compatibility is planned in `docs/11_pdf_compatibility_plan.md`. These contr
 | `convert_pdf_with_docling` | Convert digitally born PDFs to structured Markdown/JSON | source PDF | `90_Staging/pdf/` only | High |
 | `render_pdf_source_note` | Render staged Markdown from extracted PDF content | Docling result + manifest | none | Medium |
 | `write_pdf_sidecars` | Write manifest, structured JSON, tables, and assets | extracted artifacts | `90_Staging/pdf/` only | High |
-| `validate_pdf_note` | Validate PDF-specific provenance and extraction-quality metadata | staged note + sidecars | none | Low |
+| `validate_pdf_note` | Validate PDF-specific provenance, artifact links, table sidecar fidelity, and extraction-quality metadata | staged note + sidecars | none | Low |
 | `ocr_pdf_source` | Explicit OCR path for scanned PDFs | source PDF | staged OCR-derived outputs only | High |
 
-## Planned PDF contract details
+## PDF contract details
 
 ### `discover_pdf_sources`
 
@@ -103,12 +103,12 @@ render_pdf_manifest:
 convert_pdf_with_docling:
   purpose: Convert digitally born PDFs to structured Markdown/JSON through an isolated adapter.
   inputs: source PDF path, manifest, conversion options.
-  outputs: Markdown text, structured JSON/document payload, extraction warnings, artifact references.
+  outputs: Markdown text, structured JSON/document payload, table sidecars, extracted assets, extraction warnings, artifact references.
   reads: source PDF.
   writes: none directly; staged write handled by writer.
   risk: high.
   refusal_conditions: missing optional pdf dependency; missing Docling PDF option support for disabling OCR; classifier says scanned/OCR-needed; encrypted/malformed PDF; conversion exception; output has no usable text.
-  tests: dependency-missing error; PDF pipeline options force OCR disabled; digital PDF fixture; conversion failure; no source mutation; no network requirement.
+  tests: dependency-missing error; PDF pipeline options force OCR disabled; digital PDF fixture; conversion failure; figure get_image fallback; no source mutation; no network requirement.
 ```
 
 ### `write_pdf_sidecars`
@@ -122,21 +122,21 @@ write_pdf_sidecars:
   writes: `90_Staging/pdf/` only.
   risk: high.
   refusal_conditions: output escapes staging; output would overwrite without explicit permission; source path cannot be represented safely.
-  tests: staging-only enforcement; no overwrite by default; asset path traversal; duplicate run suffixing.
+  tests: staging-only enforcement; no overwrite by default; asset path traversal; generated-note links; duplicate run suffixing.
 ```
 
 ### `validate_pdf_note`
 
 ```text
 validate_pdf_note:
-  purpose: Prevent low-quality PDF extraction from being treated as trusted staged knowledge.
+  purpose: Prevent low-quality or contradictory PDF extraction artifacts from being treated as trusted staged knowledge.
   inputs: staged PDF note path and sidecar paths.
   outputs: blocking findings, warnings, suggestions.
   reads: staged note and sidecars.
   writes: none.
   risk: low.
   refusal_conditions: none; validation reports failures rather than refusing.
-  tests: missing source hash; missing page count; missing page anchors; empty extraction; missing referenced sidecar.
+  tests: missing source hash; missing page count; empty extraction; missing referenced sidecar; unsafe generated-note link; malformed table sidecar; table sidecar payload mismatch.
 ```
 
 ### `ocr_pdf_source`

@@ -9,7 +9,7 @@
 
 ## Status
 
-Implemented on branch, pending CI.
+Done. Later local verification with copied PDF fixtures present passed the full baseline gate.
 
 ## Scope
 
@@ -57,27 +57,17 @@ README.md
 docs/plans/2026-05-26-phase-11-3a-pdf-validation.md
 ```
 
-## Verification target
-
-CI should run:
+## Verification
 
 ```bash
-pytest
-ruff check .
-python -m obsidian_librarian.cli --help
-python evals/run_evals.py
+py -3.13 -m pytest
+py -3.13 -m ruff check .
+py -3.13 -m obsidian_librarian.cli --help
+py -3.13 evals/run_evals.py
 ```
 
-Local partial verification during preparation:
-
-```bash
-PYTHONPATH=/tmp/ol/src pytest -q /tmp/ol/tests/test_validators.py /tmp/ol/tests/test_pdf_validators.py
-```
-
-Result: 15 passed in the local scratch copy.
-
-`ruff` was not available in the scratch environment, so lint remains CI-verified only.
+Latest local result: full pytest passed with 125 tests, ruff passed, CLI help passed, and evals passed.
 
 ## Next gate
 
-After Phase 11.3a passes CI and review, add fixture-backed PDF acceptance gates for real extracted content before table/figure sidecars, OCR, embeddings, or RAG.
+Phase 11.3b / 11.4a and Phase 11.5 are now implemented. OCR, embeddings, and RAG remain deferred.

@@ -133,12 +133,12 @@ fixtures:
         structured_json: true
         tables: true
         assets: true
-      must_preserve:
-        - photovoltaic
-        - power systems
-        - classification
-        - modelling
-        - control
+      no_ocr_limitation: may export as image placeholders plus staged assets without text terms
+    phase_11_5:
+      expected_outputs:
+        asset_dir: true
+        note_asset_links: true
+      require_text_terms_without_ocr: false
 
   - id: microinverter_techno_economic_review
     file: A comprehensive techno-economic review of microinverters.pdf

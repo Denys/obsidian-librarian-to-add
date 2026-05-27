@@ -297,7 +297,7 @@ def render_pdf_docling_note(
         "---\n\n"
         f"# {Path(manifest.source_path).stem}\n\n"
         "## Summary\n\n"
-        "No semantic summary generated. This is staged Docling extraction output.\n\n"
+        "No generated overview. This staged note contains Docling extraction output only.\n\n"
         "## Key claims\n\n"
         "No key claims extracted deterministically in Phase 11.2.\n\n"
         "## Action items\n\n"

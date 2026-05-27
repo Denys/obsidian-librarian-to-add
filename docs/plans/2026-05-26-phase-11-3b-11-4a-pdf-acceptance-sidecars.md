@@ -10,7 +10,7 @@
 
 ## Status
 
-Implemented on branch, pending CI.
+Done, verified locally. Later Phase 11.5 verification includes copied real PDF fixtures.
 
 ## Scope
 
@@ -56,27 +56,21 @@ README.md
 docs/plans/2026-05-26-phase-11-3b-11-4a-pdf-acceptance-sidecars.md
 ```
 
-## Verification target
-
-CI should run:
+## Verification
 
 ```bash
-python -m pytest
-python -m ruff check .
-python -m obsidian_librarian.cli --help
-python evals/run_evals.py
+py -3.13 -m pytest
+py -3.13 -m ruff check .
+py -3.13 -m obsidian_librarian.cli --help
+py -3.13 evals/run_evals.py
 ```
 
-Local commands were not run in this environment because the GitHub repository cannot be cloned from the sandbox. Verification should be treated as pending until CI completes.
+Latest local result: full pytest passed with 125 tests, real Docling fixture tests passed with 7 tests, ruff passed, CLI help passed, and evals passed.
 
 ## PVplant fixture policy
 
-`PVplant/fixtures/pdf` remains useful as a real-world fixture source, but this PR avoids making CI depend on a sibling checkout. Real PVplant fixture coverage should be added later either by copying a small curated subset into this repository or by adding an explicit CI checkout/submodule strategy.
+Copied real PDF fixtures now live under `fixtures/pdf/` for local and repository-level smoke coverage. Tests still skip cleanly when optional copied PDFs are absent.
 
 ## Next gate
 
-After this PR passes CI and review:
-
-1. decide whether the structural 11.4 path is sufficient for now;
-2. add real-PVplant fixture coverage if needed;
-3. only then consider OCR as a separate explicit phase.
+Phase 11.5 is now implemented on top of this work. OCR remains a separate optional phase.

@@ -1,0 +1,82 @@
+%PDF-1.4
+%fixture
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 786 >>
+stream
+BT /F1 18 Tf 72.0 730.0 Td (Digital Basic PDF Fixture) Tj ET
+BT /F1 11 Tf 72.0 704.0 Td (Purpose: selectable text baseline; no images; no tables; sane page count.) Tj ET
+BT /F1 10 Tf 72.0 660.0 Td (This document is intentionally simple so extraction failures are easy to isolate.) Tj ET
+BT /F1 10 Tf 72.0 636.0 Td (Expected parser classification: digital_text=true, needs_ocr=false, encrypted=false.) Tj ET
+BT /F1 10 Tf 72.0 612.0 Td (The body uses only built-in Helvetica text objects and short paragraphs.) Tj ET
+BT /F1 10 Tf 72.0 588.0 Td (Numbers and units are plain text: 230 V, 50 Hz, 16 A, 47 kohm, 10 uF.) Tj ET
+BT /F1 10 Tf 72.0 564.0 Td (A converter should preserve line order and page boundaries without layout heuristics.) Tj ET
+BT /F1 9 Tf 72.0 72.0 Td (Page 1 of 3) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 1621 >>
+stream
+BT /F1 16 Tf 72.0 730.0 Td (Plain Text Continuation) Tj ET
+BT /F1 10 Tf 90.0 676.0 Td (01. Baseline sentence 1 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 652.0 Td (02. Baseline sentence 2 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 628.0 Td (03. Baseline sentence 3 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 604.0 Td (04. Baseline sentence 4 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 580.0 Td (05. Baseline sentence 5 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 556.0 Td (06. Baseline sentence 6 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 532.0 Td (07. Baseline sentence 7 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 508.0 Td (08. Baseline sentence 8 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 484.0 Td (09. Baseline sentence 9 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 460.0 Td (10. Baseline sentence 10 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 436.0 Td (11. Baseline sentence 11 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 412.0 Td (12. Baseline sentence 12 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 388.0 Td (13. Baseline sentence 13 with stable reading order and no figure anchors.) Tj ET
+BT /F1 10 Tf 90.0 364.0 Td (14. Baseline sentence 14 with stable reading order and no figure anchors.) Tj ET
+BT /F1 9 Tf 72.0 72.0 Td (Page 2 of 3) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 392 >>
+stream
+BT /F1 16 Tf 72.0 730.0 Td (Extraction Sentinel Terms) Tj ET
+BT /F1 10 Tf 72.0 690.0 Td (Sentinel-A: alpha bravo charlie.) Tj ET
+BT /F1 10 Tf 72.0 662.0 Td (Sentinel-B: inverter rating 300 VA.) Tj ET
+BT /F1 10 Tf 72.0 634.0 Td (Sentinel-C: branch circuit maximum 20 A.) Tj ET
+BT /F1 10 Tf 72.0 606.0 Td (Sentinel-D: end-of-document marker.) Tj ET
+BT /F1 9 Tf 72.0 72.0 Td (Page 3 of 3) Tj ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000018 00000 n 
+0000000067 00000 n 
+0000000136 00000 n 
+0000000206 00000 n 
+0000000332 00000 n 
+0000001168 00000 n 
+0000001294 00000 n 
+0000002966 00000 n 
+0000003092 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+3534
+%%EOF

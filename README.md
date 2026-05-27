@@ -27,6 +27,7 @@ The project has moved beyond documentation-only setup.
 | 11.2 | Done | Optional Docling digital-PDF conversion to staged Markdown and structured JSON. |
 | 11.3a | Done | Deterministic structural validation for staged PDF manifests and artifacts. |
 | 11.3b / 11.4a | Implemented on branch, pending CI | Fixture-backed PDF acceptance gates plus structural table/assets sidecar preservation. |
+| 11.4d | Implemented on branch, pending CI | Docling PDF pipeline options hardened with OCR disabled by configuration. |
 
 ## What works on main / current implementation branch
 
@@ -53,6 +54,7 @@ Implemented behavior:
 - treats PDFs as unsupported unless `--include-pdf` is explicitly supplied;
 - with `--include-pdf`, classifies PDFs and writes deterministic manifest JSON sidecars;
 - with `--pdf-converter docling`, converts eligible PDFs to staged Markdown and structured JSON;
+- configures Docling PDF conversion with `PdfPipelineOptions.do_ocr=False`;
 - preserves table-like Docling structures as staged `tables.json` sidecars when present;
 - writes Docling-exported assets under staged `assets/` folders when present;
 - writes one staged PDF folder per source PDF under `90_Staging/pdf/<source-stem>/`;
@@ -81,7 +83,7 @@ The current implementation intentionally avoids high-risk behavior:
 - no Agents SDK runtime;
 - no Git operations from the tool itself.
 
-PDF compatibility preserves the same safety posture: raw PDFs are read-only evidence, generated notes/manifests remain staged, OCR is explicit opt-in and deferred, and Docling integration is behind an optional PDF dependency path.
+PDF compatibility preserves the same safety posture: raw PDFs are read-only evidence, generated notes/manifests remain staged, OCR is explicit opt-in and deferred, and Docling integration is behind an optional PDF dependency path. The Docling adapter explicitly sets OCR off at PDF pipeline configuration time; if a future installed Docling package no longer exposes that switch, conversion fails instead of recording `ocr_enabled: false` without proof.
 
 ## Local setup
 
@@ -118,6 +120,8 @@ Docling conversion is also explicit:
 ```bash
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling
 ```
+
+The Docling PDF path uses local Docling pipeline models for layout/table extraction and may download or load those non-OCR artifacts on first use, depending on the local cache. RapidOCR/OCR is not requested by this project path: `do_ocr` is forced to `False`, remote services are disabled, and `manifest.extraction.ocr_enabled` remains `false`.
 
 For a detailed usage flow and PVplant-combo suggestions, see `docs/13_usage_manual.md`.
 

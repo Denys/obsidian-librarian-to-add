@@ -79,6 +79,7 @@ PDF compatibility must start with deterministic extraction-risk control before a
 ### Phase 11.2 Docling conversion evals
 
 - **Missing dependency:** attempting Docling conversion without the optional PDF dependency fails with a clear install hint and no partial output.
+- **Pipeline hardening:** Docling PDF conversion passes explicit PDF pipeline options with OCR disabled before conversion starts.
 - **Digital PDF conversion:** a small local digital-PDF fixture produces staged Markdown and a structured sidecar.
 - **Provenance preservation:** generated PDF notes include source path, source hash, page count, extraction method, and page anchors/page ranges.
 - **Conversion failure:** failed Docling conversion is captured in the review report and does not write a trusted source note.

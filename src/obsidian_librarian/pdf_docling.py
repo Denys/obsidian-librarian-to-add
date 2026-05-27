@@ -37,13 +37,28 @@ class DoclingConversionResult:
     assets: tuple[DoclingAsset, ...] = ()
 
 
+@dataclass(frozen=True)
+class DoclingPdfFormatApi:
+    """Docling classes needed to configure PDF conversion without eager imports."""
+
+    input_format: Any
+    pdf_format_option_cls: type[Any]
+    pdf_pipeline_options_cls: type[Any]
+
+
 def convert_pdf_with_docling(path: str | Path) -> DoclingConversionResult:
     """Convert a PDF with Docling and return Markdown plus structured sidecars."""
     pdf_path = Path(path).expanduser().resolve(strict=False)
     converter_cls = _load_docling_converter()
 
     try:
-        converter = converter_cls()
+        converter = _build_docling_converter(converter_cls)
+    except PdfDependencyError:
+        raise
+    except Exception as exc:
+        raise PdfConversionError(f"Docling converter setup failed for {pdf_path}: {exc}") from exc
+
+    try:
         result = converter.convert(pdf_path)
         document = result.document
         markdown = document.export_to_markdown()
@@ -66,6 +81,11 @@ def convert_pdf_with_docling(path: str | Path) -> DoclingConversionResult:
     )
 
 
+def _build_docling_converter(converter_cls: type[Any]) -> Any:
+    api = _load_docling_pdf_format_api()
+    pipeline_options = _build_docling_pdf_pipeline_options(api.pdf_pipeline_options_cls)
+    pdf_format_option = api.pdf_format_option_cls(pipeline_options=pipeline_options)
+    return converter_cls(format_options={api.input_format.PDF: pdf_format_option})
 
 
 def _extract_docling_assets(document: Any) -> tuple[DoclingAsset, ...]:
@@ -172,6 +192,77 @@ def _load_docling_converter() -> type[Any]:
         raise PdfDependencyError(
             "Installed docling package does not expose DocumentConverter"
         ) from exc
+
+
+def _load_docling_pdf_format_api() -> DoclingPdfFormatApi:
+    try:
+        converter_module = import_module("docling.document_converter")
+        pipeline_options_module = import_module("docling.datamodel.pipeline_options")
+        base_models_module = import_module("docling.datamodel.base_models")
+    except ImportError as exc:
+        raise PdfDependencyError(
+            "Install optional PDF support with: pip install -e .[pdf]"
+        ) from exc
+
+    try:
+        return DoclingPdfFormatApi(
+            input_format=base_models_module.InputFormat,
+            pdf_format_option_cls=converter_module.PdfFormatOption,
+            pdf_pipeline_options_cls=pipeline_options_module.PdfPipelineOptions,
+        )
+    except AttributeError as exc:
+        raise PdfDependencyError(
+            "Installed docling package does not expose configurable PDF pipeline options"
+        ) from exc
+
+
+def _build_docling_pdf_pipeline_options(pdf_pipeline_options_cls: type[Any]) -> Any:
+    options = pdf_pipeline_options_cls()
+    _set_required_docling_option(options, "do_ocr", False)
+    _set_optional_docling_options(
+        options,
+        {
+            "enable_remote_services": False,
+            "allow_external_plugins": False,
+            "do_table_structure": True,
+            "generate_page_images": False,
+            "generate_picture_images": True,
+            "do_picture_classification": False,
+            "do_picture_description": False,
+            "do_chart_extraction": False,
+            "do_code_enrichment": False,
+            "do_formula_enrichment": False,
+            "force_backend_text": False,
+        },
+    )
+    if getattr(options, "do_ocr", None) is not False:
+        raise PdfDependencyError(
+            "Installed docling package cannot guarantee OCR disabled for PDF conversion"
+        )
+    return options
+
+
+def _set_required_docling_option(options: Any, name: str, value: Any) -> None:
+    if not _supports_docling_option(options, name):
+        raise PdfDependencyError(
+            "Installed docling package cannot guarantee OCR disabled for PDF conversion"
+        )
+    setattr(options, name, value)
+
+
+def _set_optional_docling_options(options: Any, values: dict[str, Any]) -> None:
+    for name, value in values.items():
+        if _supports_docling_option(options, name):
+            setattr(options, name, value)
+
+
+def _supports_docling_option(options: Any, name: str) -> bool:
+    fields = getattr(type(options), "model_fields", None) or getattr(
+        type(options), "__fields__", None
+    )
+    if fields is not None:
+        return name in fields
+    return hasattr(options, name)
 
 
 def _docling_version() -> str:

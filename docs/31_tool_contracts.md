@@ -107,8 +107,8 @@ convert_pdf_with_docling:
   reads: source PDF.
   writes: none directly; staged write handled by writer.
   risk: high.
-  refusal_conditions: missing optional pdf dependency; classifier says scanned/OCR-needed; encrypted/malformed PDF; conversion exception; output has no usable text.
-  tests: dependency-missing error; digital PDF fixture; conversion failure; no source mutation; no network requirement.
+  refusal_conditions: missing optional pdf dependency; missing Docling PDF option support for disabling OCR; classifier says scanned/OCR-needed; encrypted/malformed PDF; conversion exception; output has no usable text.
+  tests: dependency-missing error; PDF pipeline options force OCR disabled; digital PDF fixture; conversion failure; no source mutation; no network requirement.
 ```
 
 ### `write_pdf_sidecars`

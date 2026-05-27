@@ -83,10 +83,26 @@ def render_pdf_manifests(manifests: list[PdfManifest], manifest_paths: list[Path
         rendered.append(
             f"- `{manifest.source_path}` - {manifest.classification}, "
             f"status={manifest.status}, pages={manifest.page_count},{output}"
+            f"{render_pdf_outputs_inline(manifest)}"
         )
         for warning in manifest.extraction.warnings:
             rendered.append(f"  - warning `{warning.code}`: {warning.message}")
     return rendered
+
+
+def render_pdf_outputs_inline(manifest: PdfManifest) -> str:
+    """Render generated PDF output references for review reports."""
+    parts: list[str] = []
+    if manifest.outputs.json_sidecar:
+        parts.append(f"json=`{manifest.outputs.json_sidecar}`")
+    if manifest.outputs.table_sidecars:
+        tables = ", ".join(f"`{path}`" for path in manifest.outputs.table_sidecars)
+        parts.append(f"tables={tables}")
+    if manifest.outputs.asset_dir:
+        parts.append(f"assets=`{manifest.outputs.asset_dir}`")
+    if not parts:
+        return ""
+    return " outputs: " + ", ".join(parts)
 
 
 def render_generated_notes(notes: list[GeneratedNote]) -> list[str]:

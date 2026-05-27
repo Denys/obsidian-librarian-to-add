@@ -27,6 +27,7 @@ if str(SRC_ROOT) not in sys.path:
 from obsidian_librarian.cli import main as cli_main
 from obsidian_librarian.ingest import ingest_inbox
 from obsidian_librarian.note_quality import review_note_quality
+from obsidian_librarian.pdf_docling import DoclingAsset, DoclingConversionResult
 from obsidian_librarian.validators import validate_path
 
 
@@ -466,6 +467,79 @@ def eval_pdf_scanned_deferred_ocr() -> EvalResult:
         return EvalResult("pdf_scanned_deferred_ocr", passed, "PDF OCR-deferred check")
 
 
+def eval_pdf_table_asset_quality_links() -> EvalResult:
+    """Mocked Docling output should link and validate table/asset sidecars."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        inbox = root / "00_Inbox"
+        inbox.mkdir()
+        source = inbox / "manual.pdf"
+        original = pdf_digital_fixture()
+        source.write_bytes(original)
+
+        def fake_converter(path: str | Path) -> DoclingConversionResult:
+            return DoclingConversionResult(
+                markdown="# Converted manual\n\nSentinel-A",
+                structured_json=json.dumps(
+                    {"body": {"tables": [{"cells": [["Parameter"], ["Value"]]}]}},
+                    indent=2,
+                )
+                + "\n",
+                engine_version="mock-docling",
+                tables_json=json.dumps(
+                    {
+                        "schema_version": 1,
+                        "source": "mock",
+                        "tables": [
+                            {
+                                "path": "$.body.tables",
+                                "payload": [{"cells": [["Parameter"], ["Value"]]}],
+                            }
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n",
+                assets=(
+                    DoclingAsset(
+                        relative_path=Path("figure-001.txt"),
+                        content=b"mock-figure-bytes",
+                        kind="figure",
+                        page_number=1,
+                        caption="Mock figure",
+                    ),
+                ),
+            )
+
+        result = ingest_inbox(
+            inbox,
+            root,
+            mode="draft",
+            include_pdf=True,
+            pdf_converter="docling",
+            pdf_converter_func=fake_converter,
+        )
+        source_note = root / "90_Staging" / "pdf" / "manual" / "source.md"
+        content = source_note.read_text(encoding="utf-8")
+        validation = validate_path(root / "90_Staging")
+        manifest = result.pdf_manifests[0]
+
+        passed = (
+            validation.passed
+            and manifest.extraction.ocr_enabled is False
+            and manifest.outputs.table_sidecars == ("pdf/manual/tables.json",)
+            and manifest.outputs.asset_dir == "pdf/manual/assets"
+            and "[tables.json](tables.json)" in content
+            and "[Mock figure](assets/figure-001.txt)" in content
+            and source.read_bytes() == original
+        )
+        return EvalResult(
+            "pdf_table_asset_quality_links",
+            passed,
+            "PDF table/asset quality link check",
+        )
+
+
 EVAL_CASES: tuple[EvalCase, ...] = (
     eval_staging_only_default,
     eval_read_only_no_writes,
@@ -484,6 +558,7 @@ EVAL_CASES: tuple[EvalCase, ...] = (
     eval_pdf_read_only_manifest_no_writes,
     eval_pdf_draft_manifest_written,
     eval_pdf_scanned_deferred_ocr,
+    eval_pdf_table_asset_quality_links,
 )
 
 

@@ -274,15 +274,16 @@ Subphases:
 | 11.1 | Implemented on branch, pending CI | PDF discovery, classifier, and deterministic manifest. |
 | 11.2 | Planned | Docling digital-PDF conversion to staged Markdown/JSON. |
 | 11.3 | Planned | PDF provenance validators and extraction-quality gates. |
-| 11.4 | Planned | Table, figure, and asset sidecars. |
-| 11.5 | Deferred | Explicit OCR path for scanned PDFs. |
+| 11.4 | Done | Table, figure, and asset sidecars. |
+| 11.5 | Implemented on branch, pending CI | Table and diagram quality gates. |
+| 11.6 | Optional/deferred | Explicit OCR path for scanned PDFs. |
 
 Core constraints:
 
 - PDF intake must be explicit; `.pdf` remains unsupported in default Markdown/TXT ingest until `--include-pdf` is supplied.
 - Classifier/manifest behavior lands before full conversion.
 - Docling is deferred to Phase 11.2 and must be isolated behind an optional dependency group.
-- OCR is deferred and must be explicitly enabled; there is no automatic OCR fallback.
+- OCR is deferred to optional Phase 11.6 and must be explicitly enabled; there is no automatic OCR fallback.
 - Raw PDFs are immutable evidence inputs and are never modified.
 - Generated PDF manifests remain under `90_Staging/pdf/`.
 

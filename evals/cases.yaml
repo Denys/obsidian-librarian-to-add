@@ -84,3 +84,8 @@
   phase: 11.1
   purpose: Low-text image PDFs are flagged as OCR-needed and skipped.
   expected: classification is scanned_pdf, status is skipped, and ocr_enabled is false.
+
+- id: pdf_table_asset_quality_links
+  phase: 11.5
+  purpose: Mocked Docling table and asset outputs are linked from source.md and pass PDF artifact validation.
+  expected: tables.json and asset links resolve, table payload matches docling.json, and ocr_enabled remains false.

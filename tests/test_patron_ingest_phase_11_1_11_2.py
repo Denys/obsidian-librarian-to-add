@@ -132,3 +132,33 @@ def test_ingest_conversion_failure_leaves_no_slug_directory(tmp_path: Path, monk
         ingest_pdf_to_ingestion(pdf, vault)
 
     assert not (vault / "91_Ingestion" / "fails").exists()
+
+
+def test_force_conversion_failure_keeps_existing_slug_directory(
+    tmp_path: Path, monkeypatch
+) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    pdf = tmp_path / "stable.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        lambda _p: _fake_conversion(),
+    )
+    first = ingest_pdf_to_ingestion(pdf, vault)
+    assert first.output_dir.exists()
+
+    def raise_error(_p: str | Path) -> DoclingConversionResult:
+        raise RuntimeError("docling boom")
+
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        raise_error,
+    )
+
+    with pytest.raises(RuntimeError):
+        ingest_pdf_to_ingestion(pdf, vault, force=True)
+
+    assert first.output_dir.exists()
+    assert not (vault / "91_Ingestion" / "_archive").exists()

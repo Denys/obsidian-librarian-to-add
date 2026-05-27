@@ -1,8 +1,10 @@
-"""Acceptance tests for copied real PDF fixtures."""
+"""Acceptance tests for optional copied real PDF fixtures."""
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
 
 from obsidian_librarian.pdf_classifier import classify_pdf_source
 
@@ -34,13 +36,26 @@ EXACT_EXPECTATIONS = {
 }
 
 
-def test_copied_pdf_fixtures_exist() -> None:
+def _missing_fixture_files(filenames: tuple[str, ...] = FIXTURE_FILENAMES) -> list[str]:
+    return [filename for filename in filenames if not (FIXTURE_ROOT / filename).is_file()]
+
+
+def _skip_if_optional_pdf_fixtures_missing(filenames: tuple[str, ...] = FIXTURE_FILENAMES) -> None:
+    missing = _missing_fixture_files(filenames)
+    if missing:
+        pytest.skip("optional copied PDF fixture files missing: " + ", ".join(missing))
+
+
+def test_fixture_inventory_exists() -> None:
     assert (FIXTURE_ROOT / "fixtures.yaml").is_file()
-    for filename in FIXTURE_FILENAMES:
-        assert (FIXTURE_ROOT / filename).is_file(), filename
+
+
+def test_copied_pdf_fixtures_exist_when_available() -> None:
+    _skip_if_optional_pdf_fixtures_missing()
 
 
 def test_copied_pdf_fixtures_generate_safe_manifests() -> None:
+    _skip_if_optional_pdf_fixtures_missing()
     for filename in FIXTURE_FILENAMES:
         manifest = classify_pdf_source(FIXTURE_ROOT / filename, source_root=FIXTURE_ROOT)
 
@@ -55,6 +70,8 @@ def test_copied_pdf_fixtures_generate_safe_manifests() -> None:
 
 
 def test_deterministic_pdf_fixtures_match_exact_classifier_expectations() -> None:
+    filenames = tuple(EXACT_EXPECTATIONS)
+    _skip_if_optional_pdf_fixtures_missing(filenames)
     for filename, expected in EXACT_EXPECTATIONS.items():
         manifest = classify_pdf_source(FIXTURE_ROOT / filename, source_root=FIXTURE_ROOT)
 

@@ -16,10 +16,11 @@ flowchart TD
     P8_5[Phase 8.5<br/>CI and deterministic baseline hardening<br/>DONE]
     P9[Phase 9<br/>Optional LLM enrichment + response hardening<br/>DONE - verified locally]
     P10[Phase 10<br/>Vault-aware read-only librarian<br/>PLANNED]
-    P11[Phase 11.1<br/>PDF classifier + manifest<br/>IMPLEMENTED - pending CI]
-    P11_2[Phase 11.2<br/>Docling conversion<br/>PLANNED]
+    P11[Phase 11.1<br/>PDF classifier + manifest<br/>DONE]
+    P11_2[Phase 11.2<br/>Docling conversion<br/>DONE]
+    P11_5[Phase 11.5<br/>Table/diagram quality gates<br/>DONE - verified locally]
 
-    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P8_5 --> P9 --> P10 --> P11 --> P11_2
+    P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P8_5 --> P9 --> P10 --> P11 --> P11_2 --> P11_5
 ```
 
 ## Status summary
@@ -39,8 +40,12 @@ flowchart TD
 | 9 | Done, verified locally | Optional enrichment command implemented with deterministic mock extraction, optional OpenAI extraction, and response-hardening safeguards. |
 | 10 | Planned | Vault-aware read-only librarian next layer: evidence-first ask/reporting over deterministic index/search; optional Agents SDK orchestration remains deferred. |
 | 11.0 | Done | PDF compatibility roadmap and contracts merged in PR #10. |
-| 11.1 | Implemented on branch, pending CI | PDF discovery, stdlib-only classifier, deterministic manifests, review-report surface, tests, and evals. |
-| 11.2 | Planned | Docling digital-PDF conversion to staged Markdown/JSON behind optional dependency group. |
+| 11.1 | Done | PDF discovery, stdlib-only classifier, deterministic manifests, review-report surface, tests, and evals. |
+| 11.2 | Done | Docling digital-PDF conversion to staged Markdown/JSON behind optional dependency group. |
+| 11.3a | Done | Deterministic structural validation for staged PDF manifests and artifacts. |
+| 11.3b / 11.4a | Done, verified locally | Fixture-backed PDF acceptance gates plus structural table/assets sidecar preservation. |
+| 11.4d | Done, verified locally | Docling PDF pipeline options hardened with OCR disabled by configuration. |
+| 11.5 | Done, verified locally | Table and diagram quality gates with table fidelity checks, asset links, and review-report sidecar visibility. |
 
 ## Phase 0 — Documentation organization
 
@@ -271,23 +276,25 @@ Subphases:
 | Subphase | Status | Purpose |
 |---:|---|---|
 | 11.0 | Done | Design/spec cleanup and documentation contracts merged in PR #10. |
-| 11.1 | Implemented on branch, pending CI | PDF discovery, classifier, and deterministic manifest. |
-| 11.2 | Planned | Docling digital-PDF conversion to staged Markdown/JSON. |
-| 11.3 | Planned | PDF provenance validators and extraction-quality gates. |
+| 11.1 | Done | PDF discovery, classifier, and deterministic manifest. |
+| 11.2 | Done | Docling digital-PDF conversion to staged Markdown/JSON. |
+| 11.3a | Done | PDF manifest/artifact structural validation. |
+| 11.3b / 11.4a | Done, verified locally | Fixture-backed PDF acceptance plus structural table/assets sidecar preservation. |
+| 11.4d | Done, verified locally | Docling pipeline option hardening with OCR disabled. |
 | 11.4 | Done | Table, figure, and asset sidecars. |
-| 11.5 | Implemented on branch, pending CI | Table and diagram quality gates. |
+| 11.5 | Done, verified locally | Table and diagram quality gates. |
 | 11.6 | Optional/deferred | Explicit OCR path for scanned PDFs. |
 
 Core constraints:
 
 - PDF intake must be explicit; `.pdf` remains unsupported in default Markdown/TXT ingest until `--include-pdf` is supplied.
 - Classifier/manifest behavior lands before full conversion.
-- Docling is deferred to Phase 11.2 and must be isolated behind an optional dependency group.
+- Docling remains isolated behind an optional dependency group.
 - OCR is deferred to optional Phase 11.6 and must be explicitly enabled; there is no automatic OCR fallback.
 - Raw PDFs are immutable evidence inputs and are never modified.
 - Generated PDF manifests remain under `90_Staging/pdf/`.
 
-Acceptance criteria for Phase 11.1:
+Phase 11.1 acceptance criteria:
 
 - `.pdf` files remain unsupported unless PDF intake is explicitly enabled;
 - `--include-pdf` discovers PDF candidates and classifies them with a stdlib-only probe;
@@ -297,9 +304,9 @@ Acceptance criteria for Phase 11.1:
 - no PDF-to-Markdown conversion, Docling import, OCR, embeddings, LLM calls, Agents SDK runtime, or source-PDF mutation is introduced;
 - pytest and deterministic evals cover the classifier/manifest path.
 
-Acceptance criteria before Phase 11.2 starts:
+Phase 11.2 entry criteria, now closed:
 
-- Phase 11.1 CI passes;
+- Phase 11.1 verification passes;
 - manifest schema shape is accepted;
 - first real-world PDF fixture set is chosen;
 - Docling dependency/version constraints are reviewed;
@@ -315,6 +322,11 @@ This project moved from deterministic ingest/validation into staged review quali
 - **Phase 9.1a** hardened OpenAI response parsing for incomplete/refusal/shape-variance cases while preserving deterministic-safe failure behavior and no-write guarantees on extraction failures.
 - **Phase 10.0** added a roadmap/design-only plan for a vault-aware read-only librarian with strict scope/evidence reporting and deferred Agents SDK orchestration.
 - **Phase 11.0** added PDF compatibility design/spec cleanup.
-- **Phase 11.1** adds explicit PDF discovery, stdlib-only classification, deterministic manifest JSON, and eval/test coverage before any Docling conversion.
+- **Phase 11.1** added explicit PDF discovery, stdlib-only classification, deterministic manifest JSON, and eval/test coverage before any Docling conversion.
+- **Phase 11.2** added optional Docling conversion to staged Markdown and structured JSON sidecars.
+- **Phase 11.3a** added deterministic PDF manifest/artifact validation.
+- **Phase 11.3b / 11.4a** added real-fixture acceptance gates and structural table/assets sidecars.
+- **Phase 11.4d** hardened Docling PDF pipeline options with OCR disabled at configuration time.
+- **Phase 11.5** added deterministic table/diagram quality gates, table sidecar fidelity validation, PDF-note artifact links, and review-report sidecar visibility.
 
 Key invariant across these phases: deterministic operations remain the baseline; model-assisted or PDF-conversion paths are explicit opt-in and must fail safely without hidden vault mutation.

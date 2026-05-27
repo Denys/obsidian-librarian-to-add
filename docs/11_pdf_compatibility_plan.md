@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This document defines the design/spec cleanup for PDF compatibility in Obsidian Librarian.
+This document defines the design, implementation status, and remaining gates for PDF compatibility in Obsidian Librarian.
 
-PDF support is planned as a deterministic, staging-only intake layer. It must not be bolted directly into the existing Markdown/TXT parser, and it must not introduce automatic OCR, embeddings, Agents SDK orchestration, or autonomous vault mutation.
+PDF support is implemented as a deterministic, staging-only intake layer through Phase 11.5. It is isolated from the Markdown/TXT parser, and it does not introduce automatic OCR, embeddings, Agents SDK orchestration, or autonomous vault mutation.
 
 The target architecture is:
 
@@ -42,12 +42,13 @@ Rejected for the first implementation slice:
 
 | Phase | Status | Goal | Dependencies | Writes |
 |---:|---|---|---|---|
-| 11.0 | Planned | Design/spec cleanup and contracts | none | docs only |
-| 11.1 | Planned | PDF discovery + classifier + extraction manifest | stdlib, optional lightweight PDF probe | none by default; manifest in read-only report/draft mode |
-| 11.2 | Planned | Docling digital-PDF conversion to staged Markdown/JSON | optional `pdf` dependency group | `90_Staging/` only |
-| 11.3 | Planned | PDF provenance validation and quality gates | internal validators/evals | none, except reports |
-| 11.4 | Planned | Tables, figures, and assets as sidecars | Docling export artifacts | `90_Staging/` sidecars/assets only |
-| 11.5 | Planned | Table and diagram quality gates | internal validators/evals | none, except reports |
+| 11.0 | Done | Design/spec cleanup and contracts | none | docs only |
+| 11.1 | Done | PDF discovery + classifier + extraction manifest | stdlib PDF probe | none by default; manifest in read-only report/draft mode |
+| 11.2 | Done | Docling digital-PDF conversion to staged Markdown/JSON | optional `pdf` dependency group | `90_Staging/` only |
+| 11.3a | Done | PDF manifest and artifact structural validation | internal validators/evals | none, except reports |
+| 11.3b / 11.4a | Done, verified locally | Fixture-backed PDF acceptance plus table/assets sidecar preservation | Docling export artifacts | `90_Staging/` sidecars/assets only |
+| 11.4d | Done, verified locally | Docling pipeline option hardening with OCR disabled | installed Docling `PdfPipelineOptions` API | none |
+| 11.5 | Done, verified locally | Table and diagram quality gates | internal validators/evals | none, except reports |
 | 11.6 | Deferred | Explicit OCR path for scanned PDFs | optional `ocr` dependency group | staged OCR-derived notes/sidecars only |
 
 ## Phase 11.0 — Design/spec cleanup
@@ -58,7 +59,7 @@ Allowed:
 
 - add this PDF compatibility plan;
 - update README status and documentation map;
-- update tool contracts with planned PDF tools;
+- update tool contracts with PDF tool design targets;
 - update eval strategy with PDF gates.
 
 Not allowed:
@@ -82,6 +83,8 @@ Acceptance criteria:
 ## Phase 11.1 — PDF discovery, classifier, and manifest
 
 Goal: identify PDFs safely and report extraction risk before conversion.
+
+Status: implemented.
 
 Allowed:
 
@@ -122,6 +125,8 @@ Acceptance criteria:
 
 Goal: convert digitally born PDFs into staged Markdown and structured sidecar data.
 
+Status: implemented.
+
 Allowed:
 
 - add optional dependency group, likely `pdf = ["docling>=..."]` after version review;
@@ -161,6 +166,8 @@ Acceptance criteria:
 
 Goal: prevent low-quality PDF extraction from becoming trusted notes.
 
+Status: implemented as structural PDF manifest/artifact validation in 11.3a, then expanded by the 11.4 and 11.5 sidecar gates.
+
 Allowed:
 
 - add PDF-specific validators;
@@ -178,6 +185,8 @@ Acceptance criteria:
 ## Phase 11.4 — Tables, figures, and assets
 
 Goal: preserve technical-PDF structure without flattening it into misleading prose.
+
+Status: implemented through structural table sidecars, staged figure assets, generated-note links, and review-report visibility.
 
 Allowed:
 
@@ -203,11 +212,14 @@ Acceptance criteria:
 
 Goal: make table and diagram preservation reviewable without adding semantic AI interpretation.
 
+Status: implemented and verified locally with copied real PDF fixtures present.
+
 Allowed:
 
 - validate `tables.json` schema and fidelity against `docling.json`;
 - require generated PDF notes to link declared JSON/table sidecars and staged assets;
 - preserve figure asset page/caption metadata when Docling exposes it;
+- extract picture images via `get_image(document)` when direct image bytes are unavailable;
 - report deterministic warnings for missing asset page/caption metadata.
 
 Not allowed:
@@ -224,6 +236,7 @@ Acceptance criteria:
 - table-heavy copied fixtures enforce non-empty table sidecars when present;
 - diagram-heavy copied fixtures enforce staged asset presence when present;
 - review reports list generated PDF sidecars/assets and extraction warnings.
+- diagram-heavy copied fixtures enforce staged asset presence and note links without requiring OCR-derived text terms.
 
 ## Phase 11.6 — Explicit OCR path
 
@@ -250,7 +263,7 @@ Acceptance criteria:
 - OCR warnings appear in review reports;
 - OCR output remains staging-only.
 
-## Planned manifest schema
+## Current manifest schema
 
 ```yaml
 source_path: string
@@ -284,21 +297,21 @@ provenance:
       output_anchor: string
 ```
 
-## Planned staged output layout
+## Current staged output layout
 
 ```text
 90_Staging/
   pdf/
-    <safe-source-stem>.md
-    <safe-source-stem>.manifest.json
-    <safe-source-stem>.docling.json
-    <safe-source-stem>.tables.md
-    assets/
-      <safe-source-stem>/
+    <safe-source-stem>/
+      manifest.json
+      source.md
+      docling.json
+      tables.json
+      assets/
         page-001-figure-001.png
 ```
 
-## Minimum eval additions
+## Implemented eval and test gates through Phase 11.5
 
 - PDF disabled by default: `.pdf` is reported as unsupported unless PDF intake is enabled.
 - Read-only PDF scan: enabled PDF discovery reports candidates but writes nothing.
@@ -308,6 +321,10 @@ provenance:
 - Docling missing dependency: CLI fails with a clear install hint and no partial output.
 - Docling conversion failure: review report records failure and no trusted note is written.
 - Provenance validation: PDF notes without hash/page count/page anchors fail validation.
+- Pipeline hardening: Docling receives explicit PDF pipeline options with OCR disabled.
+- Table sidecar fidelity: `tables.json` paths resolve inside `docling.json` and payloads match.
+- Generated-note artifact links: `docling.json`, `tables.json`, and `assets/...` links resolve under the staged PDF artifact folder.
+- Real copied fixtures: table-heavy fixtures require non-empty table sidecars when present; diagram-heavy fixtures require staged assets and note links when present.
 
 ## Risk register
 
@@ -323,9 +340,10 @@ provenance:
 
 ## Next implementation gate
 
-Before Phase 11.1 starts:
+Phase 11.6 remains optional and deferred:
 
-- approve the manifest schema shape;
-- choose whether Phase 11.1 may add a lightweight PDF probing dependency or should use Docling only for probing;
-- define the first PDF fixture set;
-- keep implementation limited to classifier/manifest and tests.
+- add explicit OCR only behind a dedicated flag;
+- keep OCR in an optional dependency path;
+- record OCR engine/language/confidence metadata and review warnings;
+- never rewrite source PDFs;
+- keep embeddings/RAG deferred until deterministic PDF quality stays stable.

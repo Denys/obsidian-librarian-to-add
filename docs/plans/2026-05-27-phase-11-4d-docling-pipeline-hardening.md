@@ -5,6 +5,7 @@
 - Repository: `Denys/obsidian-librarian-to-add`
 - Phase: 11.4d
 - Scope: Docling PDF pipeline option hardening only
+- Status: done, verified locally
 
 ## Implemented behavior
 
@@ -33,3 +34,10 @@ This phase does not enable deprecated `generate_table_images`. Existing behavior
 - no figure interpretation;
 - no source PDF mutation.
 
+## Verification
+
+- `py -3.13 -m pytest`: 125 passed
+- `py -3.13 -m pytest tests/test_pdf_docling_real_fixtures.py -vv -s`: 7 passed
+- `py -3.13 -m ruff check .`: passed
+- `py -3.13 -m obsidian_librarian.cli --help`: passed
+- `py -3.13 evals/run_evals.py`: passed

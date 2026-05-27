@@ -32,11 +32,11 @@ Required sections:
 - Open questions
 - Links
 
-## Planned PDF source note
+## PDF source note
 
-Represents one ingested PDF source after the PDF compatibility phase is implemented.
+Represents one ingested PDF source when PDF intake is explicitly enabled.
 
-Status: planned. See `docs/11_pdf_compatibility_plan.md`.
+Status: implemented through Phase 11.5 for classifier and Docling digital-PDF paths. See `docs/11_pdf_compatibility_plan.md`.
 
 Required metadata:
 
@@ -48,7 +48,6 @@ Required metadata:
 - `status: staged`
 - `confidence`
 - `page_count`
-- `pdf_classification`
 - `extraction_method`
 - `ocr_enabled`
 
@@ -58,9 +57,8 @@ Required sections:
 - Key claims
 - Action items
 - Open questions
-- Page evidence
-- Extraction warnings
-- Tables and figures
+- Generated sidecars
+- Extracted content
 - Links
 
 PDF-specific rules:
@@ -69,15 +67,15 @@ PDF-specific rules:
 - `page_count` is required so page-level provenance can be validated.
 - `extraction_method` must identify whether content came from classifier-only metadata, Docling conversion, or OCR.
 - `ocr_enabled` must be explicit and false unless OCR was deliberately requested.
-- `Page evidence` must map extracted content back to page ranges or page anchors.
-- `Extraction warnings` must include low-text, malformed, encrypted, OCR-needed, table-loss, figure-loss, or conversion-failure warnings when applicable.
-- Table and figure outputs should be represented as linked sidecars/assets, not blindly flattened into prose.
+- Generated sidecar links must resolve under the staged PDF artifact folder.
+- Table and figure outputs must be represented as linked sidecars/assets, not blindly flattened into prose.
+- Missing figure page/caption metadata is recorded as deterministic manifest warnings when Docling cannot expose it.
 
-## Planned PDF manifest sidecar
+## PDF manifest sidecar
 
 Represents deterministic metadata about a source PDF and its generated artifacts.
 
-Status: planned. See `docs/11_pdf_compatibility_plan.md`.
+Status: implemented. See `docs/11_pdf_compatibility_plan.md`.
 
 Required fields:
 
@@ -150,5 +148,6 @@ PDF-compatible review reports should additionally include:
 - skipped encrypted/malformed/scanned PDFs;
 - extraction method and dependency status;
 - generated PDF manifests and sidecars;
-- page-level provenance validation results;
+- table sidecars and asset directories;
+- extraction warnings for missing page/caption metadata when applicable;
 - OCR-needed/deferred warnings.

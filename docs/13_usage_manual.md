@@ -23,6 +23,20 @@ obsidian-librarian index --vault . --scope vault-and-staging
 obsidian-librarian search "your topic" --vault . --scope vault-and-staging
 ```
 
+For PDF classifier/manifest intake:
+
+```bash
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf
+```
+
+For Docling digital-PDF conversion:
+
+```bash
+pip install -e ".[dev,pdf]"
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling
+obsidian-librarian validate ./90_Staging
+```
+
 ## Command-by-command guide
 
 ### 1) ingest
@@ -36,6 +50,16 @@ obsidian-librarian ingest ./00_Inbox --vault . --mode draft
 Suggestions:
 - Keep raw exports in `00_Inbox/` grouped by source (e.g., `chat_exports/`, `repo_notes/`, `manuals/`).
 - Run `--mode read-only` first when testing on a new vault.
+- Add `--include-pdf` only when you want PDF manifests or conversion considered.
+- Add `--pdf-converter docling` only when the optional PDF dependency is installed and you want digital-PDF Markdown/JSON output.
+
+Docling PDF output is staged under `90_Staging/pdf/<source-stem>/`:
+
+- `manifest.json`;
+- `source.md`;
+- `docling.json`;
+- `tables.json` when table structures are present;
+- `assets/` when figure/image assets are exported.
 
 ### 2) validate
 
@@ -124,3 +148,6 @@ Before promoting notes outside staging:
 2. `review-quality` has no blocking findings.
 3. Search for key project terms returns expected staged notes.
 4. Provenance/source references are present in staged outputs.
+5. For PDFs, `manifest.extraction.ocr_enabled` is `false` unless explicit OCR was deliberately introduced in a later phase.
+6. For table-heavy PDFs, linked `tables.json` sidecars are present and pass validation.
+7. For diagram-heavy PDFs, staged `assets/...` links resolve under the same PDF artifact folder.

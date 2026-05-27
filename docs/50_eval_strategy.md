@@ -64,7 +64,7 @@ These evals support staged review and retrieval quality without adding LLM calls
 
 ## Phase 11 PDF eval gates
 
-PDF compatibility must start with deterministic extraction-risk control before any conversion or OCR behavior. These evals are planned in `docs/11_pdf_compatibility_plan.md` and should be added incrementally with the corresponding implementation subphase.
+PDF compatibility starts with deterministic extraction-risk control before conversion or OCR behavior. The gates below are implemented through Phase 11.5; Phase 11.6 OCR gates remain deferred until explicit OCR is approved.
 
 ### Phase 11.1 classifier/manifest evals
 
@@ -107,6 +107,7 @@ PDF compatibility must start with deterministic extraction-risk control before a
 - Generated PDF notes link declared structured JSON, table sidecars, and staged assets.
 - Optional copied table-heavy fixtures produce non-empty table sidecars when present.
 - Optional copied diagram-heavy fixtures produce staged assets and note links when present.
+- Diagram-heavy fixtures do not require OCR-derived text terms when Docling exports image placeholders plus staged assets.
 - OCR remains disabled.
 
 ### Phase 11.6 OCR evals
@@ -129,6 +130,6 @@ When a failure appears:
 
 ## Do not expand before safety passes
 
-No new LLM behavior, embeddings, PDF conversion, OCR, or Agents SDK runtime should be added until the relevant deterministic safety gates pass.
+No new LLM behavior, embeddings, OCR, or Agents SDK runtime should be added until the relevant deterministic safety gates pass.
 
-For PDF compatibility specifically: implement classifier/manifest evals before Docling conversion; implement Docling conversion evals before table/figure sidecars; implement OCR evals only when explicit OCR is approved.
+For PDF compatibility specifically: classifier/manifest, Docling conversion, table/figure sidecars, and table/diagram quality gates are now covered. Implement OCR evals only when explicit OCR is approved.

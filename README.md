@@ -26,11 +26,19 @@ The project has moved beyond documentation-only setup.
 | 11.1 | Done | PDF discovery, stdlib classifier, deterministic manifests, and review-report surface. |
 | 11.2 | Done | Optional Docling digital-PDF conversion to staged Markdown and structured JSON. |
 | 11.3a | Done | Deterministic structural validation for staged PDF manifests and artifacts. |
-| 11.3b / 11.4a | Implemented on branch, pending CI | Fixture-backed PDF acceptance gates plus structural table/assets sidecar preservation. |
-| 11.4d | Implemented on branch, pending CI | Docling PDF pipeline options hardened with OCR disabled by configuration. |
-| 11.5 | Implemented on branch, pending CI | Deterministic table/diagram quality gates, artifact links, and review-report sidecar visibility. |
+| 11.3b / 11.4a | Done, verified locally | Fixture-backed PDF acceptance gates plus structural table/assets sidecar preservation. |
+| 11.4d | Done, verified locally | Docling PDF pipeline options hardened with OCR disabled by configuration. |
+| 11.5 | Done, verified locally | Deterministic table/diagram quality gates, artifact links, and review-report sidecar visibility. |
 
-## What works on main / current implementation branch
+Current local verification with copied PDF fixtures present:
+
+- `py -3.13 -m pytest`: 125 passed
+- `py -3.13 -m pytest tests/test_pdf_docling_real_fixtures.py -vv -s`: 7 passed
+- `py -3.13 -m ruff check .`: passed
+- `py -3.13 -m obsidian_librarian.cli --help`: passed
+- `py -3.13 evals/run_evals.py`: passed
+
+## What works on the current implementation branch
 
 Implemented commands:
 
@@ -60,6 +68,8 @@ Implemented behavior:
 - writes Docling-exported assets under staged `assets/` folders when present;
 - links structured JSON, table sidecars, and staged assets from generated PDF notes;
 - validates table sidecar fidelity against `docling.json`;
+- validates generated PDF-note links to `docling.json`, `tables.json`, and staged assets;
+- records deterministic warnings for missing figure caption metadata instead of treating it as a hard failure;
 - writes one staged PDF folder per source PDF under `90_Staging/pdf/<source-stem>/`;
 - validates staged PDF manifests and claimed artifacts through the existing `validate` command;
 - writes staged source notes under `90_Staging/`;
@@ -170,7 +180,7 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-After Phase 11.5 passes CI and review, keep OCR as optional Phase 11.6 and defer embeddings/RAG until the deterministic PDF quality gates stay stable on real fixtures.
+Phase 11.6 remains optional and deferred: add explicit OCR only when it has its own dependency path, CLI flag, confidence metadata, review warnings, and no source-PDF mutation. Embeddings/RAG remain deferred until deterministic PDF intake stays stable on real fixtures.
 
 
 ## Optional LLM enrichment (Phase 9)

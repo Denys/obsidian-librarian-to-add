@@ -1,0 +1,338 @@
+%PDF-1.4
+%fixture
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 6639 >>
+stream
+BT /F1 15 Tf 28.0 560.0 Td (Table-Heavy Electrical Specification Fixture) Tj ET
+BT /F1 9 Tf 28.0 540.0 Td (Synthetic selectable-text table with dense units, ranges, conditions, and footnotes.) Tj ET
+0.50 w 28.0 510.0 m 28.0 240.0 l S
+0.50 w 150.0 510.0 m 150.0 240.0 l S
+0.50 w 205.0 510.0 m 205.0 240.0 l S
+0.50 w 250.0 510.0 m 250.0 240.0 l S
+0.50 w 295.0 510.0 m 295.0 240.0 l S
+0.50 w 340.0 510.0 m 340.0 240.0 l S
+0.50 w 390.0 510.0 m 390.0 240.0 l S
+0.50 w 520.0 510.0 m 520.0 240.0 l S
+0.50 w 820.0 510.0 m 820.0 240.0 l S
+0.50 w 28.0 510.0 m 820.0 510.0 l S
+0.50 w 28.0 492.0 m 820.0 492.0 l S
+0.50 w 28.0 474.0 m 820.0 474.0 l S
+0.50 w 28.0 456.0 m 820.0 456.0 l S
+0.50 w 28.0 438.0 m 820.0 438.0 l S
+0.50 w 28.0 420.0 m 820.0 420.0 l S
+0.50 w 28.0 402.0 m 820.0 402.0 l S
+0.50 w 28.0 384.0 m 820.0 384.0 l S
+0.50 w 28.0 366.0 m 820.0 366.0 l S
+0.50 w 28.0 348.0 m 820.0 348.0 l S
+0.50 w 28.0 330.0 m 820.0 330.0 l S
+0.50 w 28.0 312.0 m 820.0 312.0 l S
+0.50 w 28.0 294.0 m 820.0 294.0 l S
+0.50 w 28.0 276.0 m 820.0 276.0 l S
+0.50 w 28.0 258.0 m 820.0 258.0 l S
+0.50 w 28.0 240.0 m 820.0 240.0 l S
+BT /F1 7.4 Tf 31.0 498.0 Td (Parameter) Tj ET
+BT /F1 7.4 Tf 153.0 498.0 Td (Symbol) Tj ET
+BT /F1 7.4 Tf 208.0 498.0 Td (Min) Tj ET
+BT /F1 7.4 Tf 253.0 498.0 Td (Typ) Tj ET
+BT /F1 7.4 Tf 298.0 498.0 Td (Max) Tj ET
+BT /F1 7.4 Tf 343.0 498.0 Td (Unit) Tj ET
+BT /F1 7.4 Tf 393.0 498.0 Td (Condition) Tj ET
+BT /F1 7.4 Tf 523.0 498.0 Td (Notes) Tj ET
+BT /F1 6.8 Tf 31.0 480.0 Td (Input open-circuit voltage) Tj ET
+BT /F1 6.8 Tf 153.0 480.0 Td (Voc) Tj ET
+BT /F1 6.8 Tf 208.0 480.0 Td (0) Tj ET
+BT /F1 6.8 Tf 253.0 480.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 480.0 Td (125) Tj ET
+BT /F1 6.8 Tf 343.0 480.0 Td (Vdc) Tj ET
+BT /F1 6.8 Tf 393.0 480.0 Td (-40 to 85 degC) Tj ET
+BT /F1 6.8 Tf 523.0 480.0 Td (absolute max) Tj ET
+BT /F1 6.8 Tf 31.0 462.0 Td (MPPT operating window) Tj ET
+BT /F1 6.8 Tf 153.0 462.0 Td (Vmppt) Tj ET
+BT /F1 6.8 Tf 208.0 462.0 Td (12.5) Tj ET
+BT /F1 6.8 Tf 253.0 462.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 462.0 Td (105) Tj ET
+BT /F1 6.8 Tf 343.0 462.0 Td (Vdc) Tj ET
+BT /F1 6.8 Tf 393.0 462.0 Td (Pout>50 W) Tj ET
+BT /F1 6.8 Tf 523.0 462.0 Td (tracking range) Tj ET
+BT /F1 6.8 Tf 31.0 444.0 Td (Maximum short-circuit current) Tj ET
+BT /F1 6.8 Tf 153.0 444.0 Td (Isc) Tj ET
+BT /F1 6.8 Tf 208.0 444.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 444.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 444.0 Td (20) Tj ET
+BT /F1 6.8 Tf 343.0 444.0 Td (Adc) Tj ET
+BT /F1 6.8 Tf 393.0 444.0 Td (module STC) Tj ET
+BT /F1 6.8 Tf 523.0 444.0 Td (per input) Tj ET
+BT /F1 6.8 Tf 31.0 426.0 Td (Continuous input current) Tj ET
+BT /F1 6.8 Tf 153.0 426.0 Td (Iin) Tj ET
+BT /F1 6.8 Tf 208.0 426.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 426.0 Td (15) Tj ET
+BT /F1 6.8 Tf 298.0 426.0 Td (18) Tj ET
+BT /F1 6.8 Tf 343.0 426.0 Td (Adc) Tj ET
+BT /F1 6.8 Tf 393.0 426.0 Td (Tamb<=65 degC) Tj ET
+BT /F1 6.8 Tf 523.0 426.0 Td (derate above 65 degC) Tj ET
+BT /F1 6.8 Tf 31.0 408.0 Td (Rated input power) Tj ET
+BT /F1 6.8 Tf 153.0 408.0 Td (Pin) Tj ET
+BT /F1 6.8 Tf 208.0 408.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 408.0 Td (1100) Tj ET
+BT /F1 6.8 Tf 298.0 408.0 Td (1300) Tj ET
+BT /F1 6.8 Tf 343.0 408.0 Td (W) Tj ET
+BT /F1 6.8 Tf 393.0 408.0 Td (STC module) Tj ET
+BT /F1 6.8 Tf 523.0 408.0 Td (model dependent) Tj ET
+BT /F1 6.8 Tf 31.0 390.0 Td (Output operating voltage) Tj ET
+BT /F1 6.8 Tf 153.0 390.0 Td (Vout) Tj ET
+BT /F1 6.8 Tf 208.0 390.0 Td (5) Tj ET
+BT /F1 6.8 Tf 253.0 390.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 390.0 Td (80) Tj ET
+BT /F1 6.8 Tf 343.0 390.0 Td (Vdc) Tj ET
+BT /F1 6.8 Tf 393.0 390.0 Td (normal operation) Tj ET
+BT /F1 6.8 Tf 523.0 390.0 Td (optimizer bus) Tj ET
+BT /F1 6.8 Tf 31.0 372.0 Td (Safety output voltage) Tj ET
+BT /F1 6.8 Tf 153.0 372.0 Td (Vsafe) Tj ET
+BT /F1 6.8 Tf 208.0 372.0 Td (0.9) Tj ET
+BT /F1 6.8 Tf 253.0 372.0 Td (1.0) Tj ET
+BT /F1 6.8 Tf 298.0 372.0 Td (1.1) Tj ET
+BT /F1 6.8 Tf 343.0 372.0 Td (Vdc) Tj ET
+BT /F1 6.8 Tf 393.0 372.0 Td (standby) Tj ET
+BT /F1 6.8 Tf 523.0 372.0 Td (per optimizer) Tj ET
+BT /F1 6.8 Tf 31.0 354.0 Td (Maximum output current) Tj ET
+BT /F1 6.8 Tf 153.0 354.0 Td (Iout) Tj ET
+BT /F1 6.8 Tf 208.0 354.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 354.0 Td (18) Tj ET
+BT /F1 6.8 Tf 298.0 354.0 Td (20) Tj ET
+BT /F1 6.8 Tf 343.0 354.0 Td (Adc) Tj ET
+BT /F1 6.8 Tf 393.0 354.0 Td (continuous) Tj ET
+BT /F1 6.8 Tf 523.0 354.0 Td (model dependent) Tj ET
+BT /F1 6.8 Tf 31.0 336.0 Td (Peak conversion efficiency) Tj ET
+BT /F1 6.8 Tf 153.0 336.0 Td (eta_pk) Tj ET
+BT /F1 6.8 Tf 208.0 336.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 336.0 Td (99.5) Tj ET
+BT /F1 6.8 Tf 298.0 336.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 336.0 Td (%) Tj ET
+BT /F1 6.8 Tf 393.0 336.0 Td (nominal Vin) Tj ET
+BT /F1 6.8 Tf 523.0 336.0 Td (datasheet style) Tj ET
+BT /F1 6.8 Tf 31.0 318.0 Td (Weighted efficiency) Tj ET
+BT /F1 6.8 Tf 153.0 318.0 Td (eta_w) Tj ET
+BT /F1 6.8 Tf 208.0 318.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 318.0 Td (98.8) Tj ET
+BT /F1 6.8 Tf 298.0 318.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 318.0 Td (%) Tj ET
+BT /F1 6.8 Tf 393.0 318.0 Td (CEC weighted) Tj ET
+BT /F1 6.8 Tf 523.0 318.0 Td (typical) Tj ET
+BT /F1 6.8 Tf 31.0 300.0 Td (Isolation withstand) Tj ET
+BT /F1 6.8 Tf 153.0 300.0 Td (Viso) Tj ET
+BT /F1 6.8 Tf 208.0 300.0 Td (3000) Tj ET
+BT /F1 6.8 Tf 253.0 300.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 300.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 300.0 Td (Vac) Tj ET
+BT /F1 6.8 Tf 393.0 300.0 Td (60 s hipot) Tj ET
+BT /F1 6.8 Tf 523.0 300.0 Td (production test) Tj ET
+BT /F1 6.8 Tf 31.0 282.0 Td (Leakage current) Tj ET
+BT /F1 6.8 Tf 153.0 282.0 Td (Ileak) Tj ET
+BT /F1 6.8 Tf 208.0 282.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 282.0 Td (0.2) Tj ET
+BT /F1 6.8 Tf 298.0 282.0 Td (0.5) Tj ET
+BT /F1 6.8 Tf 343.0 282.0 Td (mA) Tj ET
+BT /F1 6.8 Tf 393.0 282.0 Td (264 Vac equiv) Tj ET
+BT /F1 6.8 Tf 523.0 282.0 Td (dry condition) Tj ET
+BT /F1 6.8 Tf 31.0 264.0 Td (Operating temperature) Tj ET
+BT /F1 6.8 Tf 153.0 264.0 Td (Tamb) Tj ET
+BT /F1 6.8 Tf 208.0 264.0 Td (-40) Tj ET
+BT /F1 6.8 Tf 253.0 264.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 264.0 Td (85) Tj ET
+BT /F1 6.8 Tf 343.0 264.0 Td (degC) Tj ET
+BT /F1 6.8 Tf 393.0 264.0 Td (free air) Tj ET
+BT /F1 6.8 Tf 523.0 264.0 Td (derating applies) Tj ET
+BT /F1 6.8 Tf 31.0 246.0 Td (Storage temperature) Tj ET
+BT /F1 6.8 Tf 153.0 246.0 Td (Tstg) Tj ET
+BT /F1 6.8 Tf 208.0 246.0 Td (-40) Tj ET
+BT /F1 6.8 Tf 253.0 246.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 246.0 Td (85) Tj ET
+BT /F1 6.8 Tf 343.0 246.0 Td (degC) Tj ET
+BT /F1 6.8 Tf 393.0 246.0 Td (non-operating) Tj ET
+BT /F1 6.8 Tf 523.0 246.0 Td (packed unit) Tj ET
+BT /F1 8 Tf 28.0 42.0 Td (Page 1 of 2 - Footnote: values are deterministic fixture data, not design authority.) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 6595 >>
+stream
+BT /F1 15 Tf 28.0 560.0 Td (Table-Heavy Electrical Specification Fixture) Tj ET
+BT /F1 9 Tf 28.0 540.0 Td (Synthetic selectable-text table with dense units, ranges, conditions, and footnotes.) Tj ET
+0.50 w 28.0 510.0 m 28.0 240.0 l S
+0.50 w 150.0 510.0 m 150.0 240.0 l S
+0.50 w 205.0 510.0 m 205.0 240.0 l S
+0.50 w 250.0 510.0 m 250.0 240.0 l S
+0.50 w 295.0 510.0 m 295.0 240.0 l S
+0.50 w 340.0 510.0 m 340.0 240.0 l S
+0.50 w 390.0 510.0 m 390.0 240.0 l S
+0.50 w 520.0 510.0 m 520.0 240.0 l S
+0.50 w 820.0 510.0 m 820.0 240.0 l S
+0.50 w 28.0 510.0 m 820.0 510.0 l S
+0.50 w 28.0 492.0 m 820.0 492.0 l S
+0.50 w 28.0 474.0 m 820.0 474.0 l S
+0.50 w 28.0 456.0 m 820.0 456.0 l S
+0.50 w 28.0 438.0 m 820.0 438.0 l S
+0.50 w 28.0 420.0 m 820.0 420.0 l S
+0.50 w 28.0 402.0 m 820.0 402.0 l S
+0.50 w 28.0 384.0 m 820.0 384.0 l S
+0.50 w 28.0 366.0 m 820.0 366.0 l S
+0.50 w 28.0 348.0 m 820.0 348.0 l S
+0.50 w 28.0 330.0 m 820.0 330.0 l S
+0.50 w 28.0 312.0 m 820.0 312.0 l S
+0.50 w 28.0 294.0 m 820.0 294.0 l S
+0.50 w 28.0 276.0 m 820.0 276.0 l S
+0.50 w 28.0 258.0 m 820.0 258.0 l S
+0.50 w 28.0 240.0 m 820.0 240.0 l S
+BT /F1 7.4 Tf 31.0 498.0 Td (Parameter) Tj ET
+BT /F1 7.4 Tf 153.0 498.0 Td (Symbol) Tj ET
+BT /F1 7.4 Tf 208.0 498.0 Td (Min) Tj ET
+BT /F1 7.4 Tf 253.0 498.0 Td (Typ) Tj ET
+BT /F1 7.4 Tf 298.0 498.0 Td (Max) Tj ET
+BT /F1 7.4 Tf 343.0 498.0 Td (Unit) Tj ET
+BT /F1 7.4 Tf 393.0 498.0 Td (Condition) Tj ET
+BT /F1 7.4 Tf 523.0 498.0 Td (Notes) Tj ET
+BT /F1 6.8 Tf 31.0 480.0 Td (Relative humidity) Tj ET
+BT /F1 6.8 Tf 153.0 480.0 Td (RH) Tj ET
+BT /F1 6.8 Tf 208.0 480.0 Td (0) Tj ET
+BT /F1 6.8 Tf 253.0 480.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 480.0 Td (100) Tj ET
+BT /F1 6.8 Tf 343.0 480.0 Td (%) Tj ET
+BT /F1 6.8 Tf 393.0 480.0 Td (condensing) Tj ET
+BT /F1 6.8 Tf 523.0 480.0 Td (sealed enclosure) Tj ET
+BT /F1 6.8 Tf 31.0 462.0 Td (Ingress protection) Tj ET
+BT /F1 6.8 Tf 153.0 462.0 Td (IP) Tj ET
+BT /F1 6.8 Tf 208.0 462.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 462.0 Td (68) Tj ET
+BT /F1 6.8 Tf 298.0 462.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 462.0 Td (-) Tj ET
+BT /F1 6.8 Tf 393.0 462.0 Td (IEC 60529) Tj ET
+BT /F1 6.8 Tf 523.0 462.0 Td (field installed) Tj ET
+BT /F1 6.8 Tf 31.0 444.0 Td (Connector contact resistance) Tj ET
+BT /F1 6.8 Tf 153.0 444.0 Td (Rc) Tj ET
+BT /F1 6.8 Tf 208.0 444.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 444.0 Td (1.0) Tj ET
+BT /F1 6.8 Tf 298.0 444.0 Td (2.5) Tj ET
+BT /F1 6.8 Tf 343.0 444.0 Td (mohm) Tj ET
+BT /F1 6.8 Tf 393.0 444.0 Td (new mated pair) Tj ET
+BT /F1 6.8 Tf 523.0 444.0 Td (per pole) Tj ET
+BT /F1 6.8 Tf 31.0 426.0 Td (Output wire length positive) Tj ET
+BT /F1 6.8 Tf 153.0 426.0 Td (Lplus) Tj ET
+BT /F1 6.8 Tf 208.0 426.0 Td (4.7) Tj ET
+BT /F1 6.8 Tf 253.0 426.0 Td (5.3) Tj ET
+BT /F1 6.8 Tf 298.0 426.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 426.0 Td (m) Tj ET
+BT /F1 6.8 Tf 393.0 426.0 Td (factory lead) Tj ET
+BT /F1 6.8 Tf 523.0 426.0 Td (routing limit) Tj ET
+BT /F1 6.8 Tf 31.0 408.0 Td (Output wire length negative) Tj ET
+BT /F1 6.8 Tf 153.0 408.0 Td (Lminus) Tj ET
+BT /F1 6.8 Tf 208.0 408.0 Td (0.10) Tj ET
+BT /F1 6.8 Tf 253.0 408.0 Td (0.10) Tj ET
+BT /F1 6.8 Tf 298.0 408.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 408.0 Td (m) Tj ET
+BT /F1 6.8 Tf 393.0 408.0 Td (factory lead) Tj ET
+BT /F1 6.8 Tf 523.0 408.0 Td (routing limit) Tj ET
+BT /F1 6.8 Tf 31.0 390.0 Td (Maximum system voltage) Tj ET
+BT /F1 6.8 Tf 153.0 390.0 Td (Vsys) Tj ET
+BT /F1 6.8 Tf 208.0 390.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 390.0 Td (1000) Tj ET
+BT /F1 6.8 Tf 298.0 390.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 390.0 Td (Vdc) Tj ET
+BT /F1 6.8 Tf 393.0 390.0 Td (array design) Tj ET
+BT /F1 6.8 Tf 523.0 390.0 Td (code dependent) Tj ET
+BT /F1 6.8 Tf 31.0 372.0 Td (Altitude) Tj ET
+BT /F1 6.8 Tf 153.0 372.0 Td (Alt) Tj ET
+BT /F1 6.8 Tf 208.0 372.0 Td (0) Tj ET
+BT /F1 6.8 Tf 253.0 372.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 372.0 Td (2000) Tj ET
+BT /F1 6.8 Tf 343.0 372.0 Td (m) Tj ET
+BT /F1 6.8 Tf 393.0 372.0 Td (without derating) Tj ET
+BT /F1 6.8 Tf 523.0 372.0 Td (site condition) Tj ET
+BT /F1 6.8 Tf 31.0 354.0 Td (Pollution degree) Tj ET
+BT /F1 6.8 Tf 153.0 354.0 Td (PD) Tj ET
+BT /F1 6.8 Tf 208.0 354.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 354.0 Td (3) Tj ET
+BT /F1 6.8 Tf 298.0 354.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 354.0 Td (-) Tj ET
+BT /F1 6.8 Tf 393.0 354.0 Td (outdoor) Tj ET
+BT /F1 6.8 Tf 523.0 354.0 Td (insulation coord.) Tj ET
+BT /F1 6.8 Tf 31.0 336.0 Td (Overvoltage category) Tj ET
+BT /F1 6.8 Tf 153.0 336.0 Td (OVC) Tj ET
+BT /F1 6.8 Tf 208.0 336.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 336.0 Td (II) Tj ET
+BT /F1 6.8 Tf 298.0 336.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 336.0 Td (-) Tj ET
+BT /F1 6.8 Tf 393.0 336.0 Td (DC port) Tj ET
+BT /F1 6.8 Tf 523.0 336.0 Td (IEC 62109) Tj ET
+BT /F1 6.8 Tf 31.0 318.0 Td (Fire rating material) Tj ET
+BT /F1 6.8 Tf 153.0 318.0 Td (UL94) Tj ET
+BT /F1 6.8 Tf 208.0 318.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 318.0 Td (V-0) Tj ET
+BT /F1 6.8 Tf 298.0 318.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 318.0 Td (-) Tj ET
+BT /F1 6.8 Tf 393.0 318.0 Td (polymer enclosure) Tj ET
+BT /F1 6.8 Tf 523.0 318.0 Td (flame class) Tj ET
+BT /F1 6.8 Tf 31.0 300.0 Td (Torque mounting bolt) Tj ET
+BT /F1 6.8 Tf 153.0 300.0 Td (Mbolt) Tj ET
+BT /F1 6.8 Tf 208.0 300.0 Td (8) Tj ET
+BT /F1 6.8 Tf 253.0 300.0 Td (10) Tj ET
+BT /F1 6.8 Tf 298.0 300.0 Td (12) Tj ET
+BT /F1 6.8 Tf 343.0 300.0 Td (N m) Tj ET
+BT /F1 6.8 Tf 393.0 300.0 Td (stainless rail) Tj ET
+BT /F1 6.8 Tf 523.0 300.0 Td (installer check) Tj ET
+BT /F1 6.8 Tf 31.0 282.0 Td (Minimum clearance) Tj ET
+BT /F1 6.8 Tf 153.0 282.0 Td (Clr) Tj ET
+BT /F1 6.8 Tf 208.0 282.0 Td (25) Tj ET
+BT /F1 6.8 Tf 253.0 282.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 282.0 Td (-) Tj ET
+BT /F1 6.8 Tf 343.0 282.0 Td (mm) Tj ET
+BT /F1 6.8 Tf 393.0 282.0 Td (rear surface) Tj ET
+BT /F1 6.8 Tf 523.0 282.0 Td (thermal airflow) Tj ET
+BT /F1 6.8 Tf 31.0 264.0 Td (Ground bond resistance) Tj ET
+BT /F1 6.8 Tf 153.0 264.0 Td (Rb) Tj ET
+BT /F1 6.8 Tf 208.0 264.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 264.0 Td (-) Tj ET
+BT /F1 6.8 Tf 298.0 264.0 Td (100) Tj ET
+BT /F1 6.8 Tf 343.0 264.0 Td (mohm) Tj ET
+BT /F1 6.8 Tf 393.0 264.0 Td (PE continuity) Tj ET
+BT /F1 6.8 Tf 523.0 264.0 Td (if bonded) Tj ET
+BT /F1 6.8 Tf 31.0 246.0 Td (Power-on start delay) Tj ET
+BT /F1 6.8 Tf 153.0 246.0 Td (tdly) Tj ET
+BT /F1 6.8 Tf 208.0 246.0 Td (-) Tj ET
+BT /F1 6.8 Tf 253.0 246.0 Td (35) Tj ET
+BT /F1 6.8 Tf 298.0 246.0 Td (60) Tj ET
+BT /F1 6.8 Tf 343.0 246.0 Td (s) Tj ET
+BT /F1 6.8 Tf 393.0 246.0 Td (grid present) Tj ET
+BT /F1 6.8 Tf 523.0 246.0 Td (firmware controlled) Tj ET
+BT /F1 8 Tf 28.0 42.0 Td (Page 2 of 2 - Footnote: values are deterministic fixture data, not design authority.) Tj ET
+endstream
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000018 00000 n 
+0000000067 00000 n 
+0000000130 00000 n 
+0000000200 00000 n 
+0000000326 00000 n 
+0000007016 00000 n 
+0000007142 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+13788
+%%EOF

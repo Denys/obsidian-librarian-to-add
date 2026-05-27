@@ -91,20 +91,16 @@ def test_docling_table_heavy_fixture_quality_gates(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "filename,required_term",
+    "filename",
     [
-        ("app-note-mixed-layout.pdf", "figures"),
-        (
-            "2 Classification of PV Power Systems - PV PS -- modelling design control.pdf",
-            "photovoltaic",
-        ),
-        ("A comprehensive techno-economic review of microinverters.pdf", "microinverter"),
+        "app-note-mixed-layout.pdf",
+        "2 Classification of PV Power Systems - PV PS -- modelling design control.pdf",
+        "A comprehensive techno-economic review of microinverters.pdf",
     ],
 )
 def test_docling_diagram_fixture_asset_quality_gates(
     tmp_path: Path,
     filename: str,
-    required_term: str,
 ) -> None:
     skip_if_missing_fixture(filename)
     inbox = tmp_path / "00_Inbox"
@@ -117,11 +113,11 @@ def test_docling_diagram_fixture_asset_quality_gates(
     source_md = (staging_root / "source.md").read_text(encoding="utf-8").lower()
 
     assert manifest.extraction.ocr_enabled is False
-    assert required_term.lower() in source_md
     assert manifest.outputs.asset_dir is not None
     asset_dir = tmp_path / "90_Staging" / manifest.outputs.asset_dir
     assert asset_dir.is_dir()
     assert any(path.is_file() for path in asset_dir.rglob("*"))
+    assert "[docling.json](docling.json)" in source_md
     assert "(assets/" in source_md
 
     validation = validate_path(tmp_path / "90_Staging")

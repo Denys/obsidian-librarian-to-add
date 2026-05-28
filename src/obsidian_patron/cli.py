@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 from obsidian_patron import __version__
 from obsidian_patron.docling_pipe import ingest_pdf_to_ingestion
+from obsidian_patron.linker import link_ingested_notes
 from obsidian_patron.propose import generate_proposal
 
 
@@ -21,6 +22,11 @@ def build_parser() -> argparse.ArgumentParser:
     propose = subparsers.add_parser("propose", help="Generate deterministic proposal for slug")
     propose.add_argument("slug")
     propose.add_argument("--vault", required=True)
+    link = subparsers.add_parser(
+        "link", help="Insert matched wikilinks and report unmatched candidates"
+    )
+    link.add_argument("slug")
+    link.add_argument("--vault", required=True)
     return parser
 
 
@@ -49,4 +55,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(f"Proposal: {proposal}")
         return 0
+
+    if args.command == "link":
+        try:
+            result = link_ingested_notes(args.slug, args.vault)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"Error: {exc}")
+            return 2
+        print(f"Linked files: {len(result.linked_files)}")
+        print(f"Matched candidates: {result.matched_count}")
+        print(f"Unmatched candidates: {result.unmatched_count}")
+        print(f"Unmatched report: {result.unmatched_report}")
+        return 0
     return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

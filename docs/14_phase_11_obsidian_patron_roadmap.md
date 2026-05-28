@@ -1,8 +1,8 @@
-# 13 — Phase 11 Obsidian Ingest Roadmap
+# 13 — Phase 11 Obsidian Patron Roadmap
 
 ## Executive summary
 
-Phase 11 introduces the **`obsidian-ingest`** binary: a write-capable companion to the read-only `obsidian-librarian` (Phase 10). It ingests engineering PDFs via Docling, lands them in a dedicated staging zone (`91_Ingestion`), proposes deterministic classification/tagging/wikilinks, and requires explicit human promotion before any content becomes trusted vault evidence.
+Phase 11 introduces the **`obsidian-patron`** binary: a write-capable companion to the read-only `obsidian-librarian` (Phase 10). It ingests engineering PDFs via Docling, lands them in a dedicated staging zone (`91_Ingestion`), proposes deterministic classification/tagging/wikilinks, and requires explicit human promotion before any content becomes trusted vault evidence.
 
 The two binaries share a deterministic inventory layer but operate under different safety contracts. Phase 11 ships as docling-extraction-only (dumb-pipe pattern); Phase 12 evolves into engineering-augmented extraction (equations as LaTeX, finer-grained citations, schematic-aware figure tagging).
 
@@ -34,7 +34,7 @@ This roadmap is design-only. Implementation begins after Phase 10.1–10.4 ship.
                 read-only   │             │              │  write
                             │             │              │
               ┌─────────────┴──┐    ┌─────┴───────┐  ┌───┴──────────────┐
-              │ obsidian-      │    │ shared      │  │ obsidian-ingest  │
+              │ obsidian-      │    │ shared      │  │ obsidian-patron  │
               │ librarian      │◄───┤ inventory   │──┤                  │
               │ (Phase 10.x)   │    │ library     │  │ (Phase 11.x)     │
               │ • index        │    │             │  │ • docling pipe   │
@@ -48,7 +48,7 @@ This roadmap is design-only. Implementation begins after Phase 10.1–10.4 ship.
 Key invariants:
 
 - **`obsidian-librarian`** never writes. Phase 10 acceptance criteria remain unchanged.
-- **`obsidian-ingest`** writes only into `91_Ingestion` (initial landing) or `90_Staging` (after `promote --to-staging`). It writes into trusted vault hubs only after explicit `promote --to-trusted` with human-confirmed target hub.
+- **`obsidian-patron`** writes only into `91_Ingestion` (initial landing) or `90_Staging` (after `promote --to-staging`). It writes into trusted vault hubs only after explicit `promote --to-trusted` with human-confirmed target hub.
 - Both binaries depend on the same `obsidian_inventory` Python module — the canonical scanner/indexer from Phase 10.1. No duplicate scanners.
 
 ## Repository layout
@@ -66,7 +66,7 @@ obsidian-tools/
 │   ├── ask.py                  # cited synthesis (LLM optional)
 │   ├── contract.py             # answer envelope schema
 │   └── tests/
-├── obsidian_ingest/            # Phase 11.x binary
+├── obsidian_patron/            # Phase 11.x binary
 │   ├── cli.py                  # `ingest`, `propose`, `promote`, `unmatched`
 │   ├── docling_pipe.py         # PDF → DoclingDocument → markdown chunks
 │   ├── classifier.py           # deterministic hub routing rules + LLM residue
@@ -77,7 +77,7 @@ obsidian-tools/
 │   └── tests/
 └── docs/
     ├── 12_phase_10_vault_librarian_roadmap.md
-    ├── 13_phase_11_obsidian_ingest_roadmap.md  (this doc)
+    ├── 13_phase_11_obsidian_patron_roadmap.md  (this doc)
     └── 14_phase_12_engineering_augmented_ingest.md  (future)
 ```
 
@@ -93,14 +93,14 @@ Why two binaries: a single Python invocation will never have write permissions o
 
 10.5 (Agents SDK orchestration) is unaffected. 10.6 (curation design) is superseded by Phase 11 for the ingestion-driven case; manual curation design remains open.
 
-## Phase 11.x — Write-capable ingest
+## Phase 11.x — Write-capable patron
 
 ### Phase 11.0 — Design + write-safety contract
 
 Deliverables:
 
 - this roadmap;
-- written safety contract for the `obsidian-ingest` binary;
+- written safety contract for the `obsidian-patron` binary;
 - irreversibility taxonomy applied to every write operation.
 
 Done criteria:
@@ -113,7 +113,7 @@ Non-goals: no code, no dependency changes.
 
 Deliverables:
 
-- `obsidian-ingest ingest <pdf-path>` reads PDF, runs docling, produces a structured intermediate representation;
+- `obsidian-patron ingest <pdf-path>` reads PDF, runs docling, produces a structured intermediate representation;
 - output is a per-PDF directory under `91_Ingestion/<pdf-slug>/`:
 
 ```
@@ -172,7 +172,7 @@ Deliverables:
 - rule-based hub classifier:
   - filename regex rules (e.g., `*power*`, `*dsp*`, `*emc*` → routes to corresponding hub);
   - frontmatter/embedded-metadata rules (PDF subject, keywords, publisher);
-  - TOC keyword scoring against per-hub keyword sets (configurable in `obsidian-ingest/config/hubs.yaml`);
+  - TOC keyword scoring against per-hub keyword sets (configurable in `obsidian-patron/config/hubs.yaml`);
   - rank-ordered candidate hubs with confidence scores;
 - deterministic tag extractor:
   - tags from filename tokens, embedded PDF keywords, glossary/index entries;
@@ -195,7 +195,7 @@ Done criteria:
 
 Deliverables:
 
-- `obsidian-ingest propose <pdf-slug> [--llm]` regenerates the proposal with optional LLM enrichment:
+- `obsidian-patron propose <pdf-slug> [--llm]` regenerates the proposal with optional LLM enrichment:
   - LLM-suggested hub when deterministic classifier returned `unclassified`;
   - LLM-suggested abstract/summary (added to `_proposal.md`, not to note content);
   - LLM-suggested additional tags (clearly marked as `llm_suggested`);
@@ -218,7 +218,7 @@ Done criteria:
 
 Deliverables:
 
-- `obsidian-ingest link <pdf-slug>` extracts concept candidates from ingested notes:
+- `obsidian-patron link <pdf-slug>` extracts concept candidates from ingested notes:
   - candidates from headings, bold-emphasis terms, index/glossary entries, frequent multi-word noun phrases;
   - deterministic matching against the shared inventory: exact title match, alias match (frontmatter `aliases`), case-insensitive heading match within hubs;
   - matched candidates → wikilinks inserted into ingested notes (this IS a write into `91_Ingestion`, but does not change the data — only adds link syntax);
@@ -243,12 +243,12 @@ Done criteria:
 
 Deliverables:
 
-- `obsidian-ingest promote <pdf-slug> --to-staging` moves the entire `<pdf-slug>/` directory from `91_Ingestion/` to `90_Staging/`. Directory move only, no content rewriting. This is the "review-ready" state.
-- `obsidian-ingest promote <pdf-slug> --to-trusted --hub <hub-name>` moves the directory into the specified hub (e.g., `20_Power-Electronics/<pdf-slug>/`). Requires:
+- `obsidian-patron promote <pdf-slug> --to-staging` moves the entire `<pdf-slug>/` directory from `91_Ingestion/` to `90_Staging/`. Directory move only, no content rewriting. This is the "review-ready" state.
+- `obsidian-patron promote <pdf-slug> --to-trusted --hub <hub-name>` moves the directory into the specified hub (e.g., `20_Power-Electronics/<pdf-slug>/`). Requires:
   - explicit `--hub` argument (no default);
   - the proposal's classification matches `--hub` OR `--override` flag passed;
   - frontmatter rewritten: `status: trusted`, `promoted_from: 91_Ingestion` or `90_Staging`, `promoted_at: <timestamp>`;
-- `obsidian-ingest unpromote <pdf-slug>` reverses promotion within a session, restoring previous location.
+- `obsidian-patron unpromote <pdf-slug>` reverses promotion within a session, restoring previous location.
 
 Constraints:
 
@@ -350,7 +350,7 @@ Every write operation is classified and handled per its irreversibility tier:
 | Modify wikilinks in trusted notes pointing to promoted content | **Forbidden in v1** | Out of scope; user responsibility |
 | Delete any vault file | **Forbidden** | Never |
 
-Session-close semantics: a "session" is a single invocation of `obsidian-ingest`. Cross-session reversibility falls to git or manual operations — outside the tool's scope.
+Session-close semantics: a "session" is a single invocation of `obsidian-patron`. Cross-session reversibility falls to git or manual operations — outside the tool's scope.
 
 ## CLI surface (provisional)
 
@@ -361,14 +361,14 @@ obsidian-librarian search "buck converter" --scope vault-and-staging
 obsidian-librarian ask "What do I know about reverb algorithms?" --scope vault
 
 # Write-capable ingest (Phase 11.x)
-obsidian-ingest ingest path/to/book.pdf --vault . [--force]
-obsidian-ingest propose <pdf-slug> [--llm]
-obsidian-ingest link <pdf-slug>
-obsidian-ingest unmatched <pdf-slug>           # prints unmatched candidates report
-obsidian-ingest promote <pdf-slug> --to-staging
-obsidian-ingest promote <pdf-slug> --to-trusted --hub 20_Power-Electronics
-obsidian-ingest unpromote <pdf-slug>           # within-session reversal
-obsidian-ingest status <pdf-slug>              # shows current location + provenance
+obsidian-patron ingest path/to/book.pdf --vault . [--force]
+obsidian-patron propose <pdf-slug> [--llm]
+obsidian-patron link <pdf-slug>
+obsidian-patron unmatched <pdf-slug>           # prints unmatched candidates report
+obsidian-patron promote <pdf-slug> --to-staging
+obsidian-patron promote <pdf-slug> --to-trusted --hub 20_Power-Electronics
+obsidian-patron unpromote <pdf-slug>           # within-session reversal
+obsidian-patron status <pdf-slug>              # shows current location + provenance
 ```
 
 Naming aligned with Phase 10 conventions. If existing CLI architecture suggests different naming, names remain provisional.
@@ -407,7 +407,7 @@ Carried from Phase 10:
 
 New from Phase 11:
 
-8. Should `obsidian-ingest` run docling with GPU acceleration? → defer; benchmark CPU-only first.
+8. Should `obsidian-patron` run docling with GPU acceleration? → defer; benchmark CPU-only first.
 9. Should the hub classifier weights be configurable per-user, or shipped with sensible defaults? → ship defaults + allow per-user override in `~/.config/obsidian-tools/hubs.yaml`.
 10. Should the unmatched-candidate report aggregate across multiple ingested PDFs? → v1: per-PDF only; aggregated reporting deferred.
 11. How are conflicting promotions handled (same `<pdf-slug>` promoted twice to different hubs)? → second promotion fails with explicit error unless `--override`.
@@ -427,17 +427,40 @@ Phase 11.x complete when:
 
 Phase 12.x complete when each sub-phase ships with its own design doc + tests.
 
-## Implementation order
+## Implementation order (one phase per PR)
+
+To support incremental delivery, each phase should be implemented and reviewed in a separate PR with its own tests and rollback plan.
 
 1. Ship Phase 10.1–10.4 (read-only librarian).
-2. Merge this Phase 11 roadmap (design-only).
-3. Implement 11.1 (docling pipe).
-4. Implement 11.2 (write contract + guards).
-5. Implement 11.3 (deterministic proposals).
-6. Implement 11.5 (wikilinks, before 11.4 because deterministic).
-7. Implement 11.6 (promotion).
-8. Implement 11.4 (LLM enrichment) last — additive, doesn't gate anything else.
-9. Run real ingest on 3–5 personal engineering books to validate.
-10. Reassess Phase 12 priorities based on which v1 gaps actually hurt.
+2. Keep this roadmap merged as the baseline contract (design-only).
+3. PR-1: Implement 11.1 (docling pipe only).
+4. PR-2: Implement 11.2 (write contract + guards).
+5. PR-3: Implement 11.3 (deterministic classification/tag proposals).
+6. PR-4: Implement 11.5 (deterministic match-only wikilinks and unmatched report).
+7. PR-5: Implement 11.6 (promotion + within-session unpromote).
+8. PR-6: Implement 11.4 (optional LLM enrichment) last — additive and non-gating.
+9. Validation PR: run real ingest on 3–5 personal engineering books and capture gaps.
+10. Reassess Phase 12 priorities based on observed v1 friction.
 
-Primary design decision: ingestion produces proposals, never autonomous mutations. Every write into the vault — staging or trusted — passes through an explicit human-confirmed promotion step.
+### Phase PR checklist (required for every phase)
+
+For each phase PR, include all of the following:
+
+- scope statement: exact phase and explicit non-goals;
+- safety proof: no writes outside allowed directories for that phase;
+- deterministic proof: idempotency or stable-output tests where applicable;
+- contract proof: schema/output examples updated in docs;
+- regression proof: existing phase tests still pass;
+- operator notes: failure modes and recovery steps.
+
+### Recommended first implementation slice
+
+Start with **Phase 11.1** only:
+
+- create `obsidian_patron` CLI scaffold with `ingest` command;
+- implement per-PDF output tree in `91_Ingestion/<pdf-slug>/`;
+- write `_ingest_manifest.json` with source hash and run timestamp;
+- enforce `--force` archive behavior;
+- add tests for deterministic tree layout and no out-of-scope writes.
+
+Primary design decision: patron ingestion produces proposals, never autonomous mutations. Every write into the vault — staging or trusted — passes through an explicit human-confirmed promotion step.

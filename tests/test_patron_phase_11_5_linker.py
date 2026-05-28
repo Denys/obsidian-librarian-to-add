@@ -18,7 +18,8 @@ def test_link_ingested_notes_matches_existing_title_and_reports_unmatched(tmp_pa
     slug_dir.mkdir(parents=True)
     note = slug_dir / "01_chapter.md"
     note.write_text(
-        "# Chapter One\n\nA **Buck Converter** regulates output. **Flux Capacitor** is unrelated.\n",
+        "# Chapter One\n\n"
+        "A **Buck Converter** regulates output. **Flux Capacitor** is unrelated.\n",
         encoding="utf-8",
     )
 

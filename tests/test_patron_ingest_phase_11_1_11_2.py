@@ -7,7 +7,12 @@ import pytest
 
 from obsidian_librarian.pdf_docling import DoclingAsset, DoclingConversionResult
 from obsidian_patron.docling_pipe import ingest_pdf_to_ingestion, slugify
-from obsidian_patron.safety import archive_existing_slug, ensure_under
+from obsidian_patron.safety import (
+    IngestionContractError,
+    archive_existing_slug,
+    ensure_under,
+    validate_ingestion_write_contract,
+)
 
 
 def _fake_conversion() -> DoclingConversionResult:
@@ -118,7 +123,10 @@ def test_ingest_manifest_and_frontmatter_include_ingest_run_id(tmp_path: Path, m
     assert "status: ingested" in full_document_text
     assert "origin: timing" in full_document_text
     assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in full_document_text
-    assert "section: full-document" in full_document_text
+    assert "source_section: full-document" in full_document_text
+    assert "\nsection: full-document\n" not in full_document_text
+    assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in index_text
+    assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in metadata_text
 
 
 def test_ingest_conversion_failure_leaves_no_slug_directory(tmp_path: Path, monkeypatch) -> None:
@@ -169,3 +177,76 @@ def test_force_failure_preserves_existing_slug_directory(tmp_path: Path, monkeyp
     assert out_dir.exists()
     assert (out_dir / "01_full-document.md").read_text(encoding="utf-8") == original_text
     assert not (vault / "91_Ingestion" / "_archive" / "keep").exists()
+
+
+def test_ingestion_write_contract_rejects_missing_frontmatter(tmp_path: Path) -> None:
+    ingestion_dir = tmp_path / "91_Ingestion" / "bad"
+    ingestion_dir.mkdir(parents=True)
+    source_pdf = tmp_path / "bad.pdf"
+    source_pdf.write_bytes(b"%PDF-1.4\n")
+    run_id = "11111111-1111-4111-8111-111111111111"
+    (ingestion_dir / "01_full-document.md").write_text("# Missing frontmatter\n", encoding="utf-8")
+
+    with pytest.raises(IngestionContractError, match="missing YAML frontmatter"):
+        validate_ingestion_write_contract(
+            ingestion_dir,
+            origin="bad",
+            ingest_run_id=run_id,
+            source_pdf=source_pdf,
+        )
+
+
+def test_ingestion_write_contract_rejects_fresh_wikilinks(tmp_path: Path) -> None:
+    ingestion_dir = tmp_path / "91_Ingestion" / "linked"
+    ingestion_dir.mkdir(parents=True)
+    source_pdf = tmp_path / "linked.pdf"
+    source_pdf.write_bytes(b"%PDF-1.4\n")
+    run_id = "11111111-1111-4111-8111-111111111111"
+    (ingestion_dir / "01_full-document.md").write_text(
+        "---\n"
+        "status: ingested\n"
+        "origin: linked\n"
+        f"ingest_run_id: {run_id}\n"
+        f"source_pdf: {source_pdf.resolve(strict=False).as_posix()}\n"
+        "source_section: full-document\n"
+        "---\n\n"
+        "This pre-links to [[Trusted Hub]].\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(IngestionContractError, match="contains wikilinks"):
+        validate_ingestion_write_contract(
+            ingestion_dir,
+            origin="linked",
+            ingest_run_id=run_id,
+            source_pdf=source_pdf,
+        )
+
+
+def test_ingest_validation_failure_cleans_temp_and_leaves_no_slug_directory(
+    tmp_path: Path, monkeypatch
+) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    pdf = tmp_path / "invalid.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        lambda _p: _fake_conversion(),
+    )
+
+    def reject_contract(*_args, **_kwargs) -> None:
+        raise IngestionContractError("contract boom")
+
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.validate_ingestion_write_contract",
+        reject_contract,
+    )
+
+    with pytest.raises(IngestionContractError, match="contract boom"):
+        ingest_pdf_to_ingestion(pdf, vault)
+
+    ingestion_root = vault / "91_Ingestion"
+    assert not (ingestion_root / "invalid").exists()
+    assert not tuple(ingestion_root.glob(".invalid.tmp-*"))

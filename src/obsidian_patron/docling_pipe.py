@@ -3,13 +3,18 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from obsidian_librarian.pdf_docling import convert_pdf_with_docling
-from obsidian_patron.safety import archive_existing_slug, ensure_under
+from obsidian_patron.safety import (
+    archive_existing_slug,
+    ensure_under,
+    validate_ingestion_write_contract,
+)
 
 
 @dataclass(frozen=True)
@@ -48,73 +53,88 @@ def ingest_pdf_to_ingestion(
 
     temp_dir = ensure_under(ingestion_root, ingestion_root / f".{slug}.tmp-{run_id}")
     temp_dir.mkdir(parents=True, exist_ok=False)
-    (temp_dir / "attachments").mkdir(exist_ok=True)
-    (temp_dir / "tables").mkdir(exist_ok=True)
+    try:
+        (temp_dir / "attachments").mkdir(exist_ok=True)
+        (temp_dir / "tables").mkdir(exist_ok=True)
 
-    index_text = (
-        "---\n"
-        "status: ingested\n"
-        f"origin: {slug}\n"
-        f"ingest_run_id: {run_id}\n"
-        "---\n\n"
-        f"# {source.stem}\n"
-    )
-    (temp_dir / "index.md").write_text(index_text, encoding="utf-8")
+        index_text = (
+            "---\n"
+            "status: ingested\n"
+            f"origin: {slug}\n"
+            f"ingest_run_id: {run_id}\n"
+            f"source_pdf: {source.as_posix()}\n"
+            "---\n\n"
+            f"# {source.stem}\n"
+        )
+        (temp_dir / "index.md").write_text(index_text, encoding="utf-8")
 
-    metadata_text = (
-        "---\n"
-        "status: ingested\n"
-        f"origin: {slug}\n"
-        f"ingest_run_id: {run_id}\n"
-        f"source_pdf: {source.as_posix()}\n"
-        "---\n"
-    )
-    (temp_dir / "00_metadata.md").write_text(metadata_text, encoding="utf-8")
+        metadata_text = (
+            "---\n"
+            "status: ingested\n"
+            f"origin: {slug}\n"
+            f"ingest_run_id: {run_id}\n"
+            f"source_pdf: {source.as_posix()}\n"
+            "---\n"
+        )
+        (temp_dir / "00_metadata.md").write_text(metadata_text, encoding="utf-8")
 
-    section_text = (
-        "---\n"
-        "status: ingested\n"
-        f"origin: {slug}\n"
-        f"ingest_run_id: {run_id}\n"
-        f"source_pdf: {source.as_posix()}\n"
-        "section: full-document\n"
-        "---\n\n"
-        f"{conversion.markdown.strip()}\n"
-    )
-    (temp_dir / "01_full-document.md").write_text(
-        section_text,
-        encoding="utf-8",
-    )
-    for idx, asset in enumerate(conversion.assets, start=1):
-        target = temp_dir / "attachments" / f"fig_{idx:04d}_{Path(asset.relative_path).name}"
-        target.write_bytes(asset.content)
+        section_text = (
+            "---\n"
+            "status: ingested\n"
+            f"origin: {slug}\n"
+            f"ingest_run_id: {run_id}\n"
+            f"source_pdf: {source.as_posix()}\n"
+            "source_section: full-document\n"
+            "---\n\n"
+            f"{conversion.markdown.strip()}\n"
+        )
+        (temp_dir / "01_full-document.md").write_text(
+            section_text,
+            encoding="utf-8",
+        )
+        for idx, asset in enumerate(conversion.assets, start=1):
+            target = temp_dir / "attachments" / f"fig_{idx:04d}_{Path(asset.relative_path).name}"
+            target.write_bytes(asset.content)
 
-    manifest = {
-        "source_pdf": source.as_posix(),
-        "source_hash": hashlib.sha256(source.read_bytes()).hexdigest(),
-        "ingest_time": datetime.now(timezone.utc).isoformat(),
-        "ingest_tool": "docling",
-        "document_type": "pdf",
-        "origin": slug,
-        "ingest_run_id": run_id,
-        "outputs": {
-            "index": "index.md",
-            "metadata": "00_metadata.md",
-            "section_notes": ["01_full-document.md"],
-            "attachments_count": len(conversion.assets),
-            "tables_count": _count_tables(conversion.tables_json),
-        },
-    }
-    temp_manifest = temp_dir / "_ingest_manifest.json"
-    temp_manifest.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+        manifest = {
+            "source_pdf": source.as_posix(),
+            "source_hash": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "ingest_time": datetime.now(timezone.utc).isoformat(),
+            "ingest_tool": "docling",
+            "document_type": "pdf",
+            "origin": slug,
+            "ingest_run_id": run_id,
+            "outputs": {
+                "index": "index.md",
+                "metadata": "00_metadata.md",
+                "section_notes": ["01_full-document.md"],
+                "attachments_count": len(conversion.assets),
+                "tables_count": _count_tables(conversion.tables_json),
+            },
+        }
+        temp_manifest = temp_dir / "_ingest_manifest.json"
+        temp_manifest.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
-    archived_previous = None
-    if out_dir_exists:
-        archived_previous = archive_existing_slug(ingestion_root=ingestion_root, slug_dir=out_dir)
-    temp_dir.replace(out_dir)
+        validate_ingestion_write_contract(
+            temp_dir,
+            origin=slug,
+            ingest_run_id=run_id,
+            source_pdf=source,
+        )
+
+        archived_previous = None
+        if out_dir_exists:
+            archived_previous = archive_existing_slug(
+                ingestion_root=ingestion_root, slug_dir=out_dir
+            )
+        temp_dir.replace(out_dir)
+    except Exception:
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+        raise
     return IngestResult(
         slug=slug,
         output_dir=out_dir,

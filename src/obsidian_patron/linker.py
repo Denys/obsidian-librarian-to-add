@@ -176,12 +176,19 @@ def _replace_first_body_occurrence(text: str, needle: str, replacement: str) -> 
     lines = text.splitlines(keepends=True)
     pattern = re.compile(rf"(?<!\[\[)\b{re.escape(needle)}\b(?![^\[]*\]\])")
     in_frontmatter = False
+    in_fenced_code = False
     if lines and lines[0].strip() == "---":
         in_frontmatter = True
     for index, line in enumerate(lines):
         if in_frontmatter:
             if index > 0 and line.strip() == "---":
                 in_frontmatter = False
+            continue
+        stripped = line.lstrip()
+        if stripped.startswith(("```", "~~~")):
+            in_fenced_code = not in_fenced_code
+            continue
+        if in_fenced_code:
             continue
         if line.lstrip().startswith("#"):
             continue
@@ -193,7 +200,7 @@ def _replace_first_body_occurrence(text: str, needle: str, replacement: str) -> 
 
 
 def _render_unmatched_report(unmatched: dict[str, list[Path]]) -> str:
-    lines = ["# Candidate notes — review before creating manually", ""]
+    lines = ["# Candidate notes - review before creating manually", ""]
     if not unmatched:
         lines.append("- None")
         return "\n".join(lines) + "\n"

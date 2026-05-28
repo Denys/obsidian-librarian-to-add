@@ -74,6 +74,7 @@ def test_ingest_pdf_creates_expected_tree_and_manifest(tmp_path: Path, monkeypat
     assert payload["ingest_tool"] == "docling"
     assert payload["origin"] == "analog"
     assert payload["outputs"]["attachments_count"] == 1
+    assert payload["outputs"]["tables_count"] == 1
 
 
 def test_ingest_pdf_existing_slug_requires_force(tmp_path: Path, monkeypatch) -> None:
@@ -110,8 +111,14 @@ def test_ingest_manifest_and_frontmatter_include_ingest_run_id(tmp_path: Path, m
 
     index_text = (result.output_dir / "index.md").read_text(encoding="utf-8")
     metadata_text = (result.output_dir / "00_metadata.md").read_text(encoding="utf-8")
+    full_document_text = (result.output_dir / "01_full-document.md").read_text(encoding="utf-8")
     assert f"ingest_run_id: {run_id}" in index_text
     assert f"ingest_run_id: {run_id}" in metadata_text
+    assert f"ingest_run_id: {run_id}" in full_document_text
+    assert "status: ingested" in full_document_text
+    assert "origin: timing" in full_document_text
+    assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in full_document_text
+    assert "section: full-document" in full_document_text
 
 
 def test_ingest_conversion_failure_leaves_no_slug_directory(tmp_path: Path, monkeypatch) -> None:

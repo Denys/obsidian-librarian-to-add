@@ -8,8 +8,13 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
-from obsidian_librarian.pdf_docling import convert_pdf_with_docling
+from obsidian_librarian.pdf_docling import (
+    DoclingConversionResult,
+    DoclingSection,
+    convert_pdf_with_docling,
+)
 from obsidian_patron.safety import (
     archive_existing_slug,
     ensure_under,
@@ -57,44 +62,12 @@ def ingest_pdf_to_ingestion(
         (temp_dir / "attachments").mkdir(exist_ok=True)
         (temp_dir / "tables").mkdir(exist_ok=True)
 
-        index_text = (
-            "---\n"
-            "status: ingested\n"
-            f"origin: {slug}\n"
-            f"ingest_run_id: {run_id}\n"
-            f"source_pdf: {source.as_posix()}\n"
-            "---\n\n"
-            f"# {source.stem}\n"
-        )
-        (temp_dir / "index.md").write_text(index_text, encoding="utf-8")
-
-        metadata_text = (
-            "---\n"
-            "status: ingested\n"
-            f"origin: {slug}\n"
-            f"ingest_run_id: {run_id}\n"
-            f"source_pdf: {source.as_posix()}\n"
-            "---\n"
-        )
-        (temp_dir / "00_metadata.md").write_text(metadata_text, encoding="utf-8")
-
-        section_text = (
-            "---\n"
-            "status: ingested\n"
-            f"origin: {slug}\n"
-            f"ingest_run_id: {run_id}\n"
-            f"source_pdf: {source.as_posix()}\n"
-            "source_section: full-document\n"
-            "---\n\n"
-            f"{conversion.markdown.strip()}\n"
-        )
-        (temp_dir / "01_full-document.md").write_text(
-            section_text,
-            encoding="utf-8",
-        )
-        for idx, asset in enumerate(conversion.assets, start=1):
-            target = temp_dir / "attachments" / f"fig_{idx:04d}_{Path(asset.relative_path).name}"
-            target.write_bytes(asset.content)
+        sections = _section_notes(conversion)
+        section_files = _write_section_notes(temp_dir, sections, source, slug, run_id)
+        _write_index_note(temp_dir, source, slug, run_id, section_files)
+        _write_metadata_note(temp_dir, source, slug, run_id, conversion.metadata or {})
+        _write_table_sidecars(temp_dir, conversion)
+        attachment_files = _write_assets(temp_dir, conversion)
 
         manifest = {
             "source_pdf": source.as_posix(),
@@ -107,9 +80,13 @@ def ingest_pdf_to_ingestion(
             "outputs": {
                 "index": "index.md",
                 "metadata": "00_metadata.md",
-                "section_notes": ["01_full-document.md"],
+                "section_notes": [filename for filename, _title in section_files],
+                "attachments": attachment_files,
                 "attachments_count": len(conversion.assets),
-                "tables_count": _count_tables(conversion.tables_json),
+                "tables_count": _count_conversion_tables(conversion),
+                "code_blocks_count": len(conversion.code_blocks),
+                "figure_captions_count": len(conversion.figure_captions),
+                "glossary_index_hints": list(conversion.glossary_index_hints),
             },
         }
         temp_manifest = temp_dir / "_ingest_manifest.json"
@@ -142,6 +119,137 @@ def ingest_pdf_to_ingestion(
         archived_previous=archived_previous,
         manifest_path=out_dir / "_ingest_manifest.json",
     )
+
+
+def _section_notes(conversion: DoclingConversionResult) -> tuple[DoclingSection, ...]:
+    if conversion.sections:
+        return conversion.sections
+    markdown = conversion.markdown.strip()
+    return (
+        DoclingSection(
+            title="Full Document",
+            markdown=markdown,
+            heading_path=_first_heading_path(markdown) or "full-document",
+        ),
+    )
+
+
+def _first_heading_path(markdown: str) -> str | None:
+    match = re.search(r"^#{1,6}\s+(.+?)\s*$", markdown, re.MULTILINE)
+    if not match:
+        return None
+    return slugify(match.group(1))
+
+
+def _write_section_notes(
+    temp_dir: Path,
+    sections: tuple[DoclingSection, ...],
+    source: Path,
+    slug: str,
+    run_id: str,
+) -> list[tuple[str, str]]:
+    written: list[tuple[str, str]] = []
+    for index, section in enumerate(sections, start=1):
+        filename = f"{index:02d}_{slugify(section.title)}.md"
+        frontmatter = [
+            "---",
+            "status: ingested",
+            f"origin: {slug}",
+            f"ingest_run_id: {run_id}",
+            f"source_pdf: {source.as_posix()}",
+            f"source_section: {section.heading_path}",
+        ]
+        if section.kind:
+            frontmatter.append(f"section_kind: {section.kind}")
+        frontmatter.append("---")
+        body = section.markdown.strip()
+        (temp_dir / filename).write_text(
+            "\n".join(frontmatter) + f"\n\n{body}\n",
+            encoding="utf-8",
+        )
+        written.append((filename, section.title))
+    return written
+
+
+def _write_index_note(
+    temp_dir: Path,
+    source: Path,
+    slug: str,
+    run_id: str,
+    section_files: list[tuple[str, str]],
+) -> None:
+    lines = [
+        "---",
+        "status: ingested",
+        f"origin: {slug}",
+        f"ingest_run_id: {run_id}",
+        f"source_pdf: {source.as_posix()}",
+        "---",
+        "",
+        f"# {source.stem}",
+        "",
+        "Ingest status: ingested",
+        "",
+        "## Sections",
+        "",
+    ]
+    for filename, title in section_files:
+        lines.append(f"- [[{Path(filename).stem}|{title}]]")
+    (temp_dir / "index.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
+def _write_metadata_note(
+    temp_dir: Path,
+    source: Path,
+    slug: str,
+    run_id: str,
+    metadata: dict[str, Any],
+) -> None:
+    lines = [
+        "---",
+        "status: ingested",
+        f"origin: {slug}",
+        f"ingest_run_id: {run_id}",
+        f"source_pdf: {source.as_posix()}",
+    ]
+    for key in sorted(metadata):
+        lines.append(f"{key}: {_yaml_scalar(metadata[key])}")
+    lines.extend(["---", ""])
+    (temp_dir / "00_metadata.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def _write_table_sidecars(temp_dir: Path, conversion: DoclingConversionResult) -> None:
+    if conversion.tables_json:
+        (temp_dir / "tables" / "tables.json").write_text(conversion.tables_json, encoding="utf-8")
+
+
+def _write_assets(temp_dir: Path, conversion: DoclingConversionResult) -> list[str]:
+    attachment_files: list[str] = []
+    for idx, asset in enumerate(conversion.assets, start=1):
+        target_name = _asset_target_name(asset.relative_path, asset.caption, idx)
+        relative = f"attachments/{target_name}"
+        (temp_dir / relative).write_bytes(asset.content)
+        attachment_files.append(relative)
+    return attachment_files
+
+
+def _asset_target_name(relative_path: Path, caption: str | None, index: int) -> str:
+    path = Path(relative_path)
+    suffix = path.suffix or ".bin"
+    basename = slugify(caption or path.stem)
+    return f"fig_{index:04d}_{basename}{suffix}"
+
+
+def _yaml_scalar(value: Any) -> str:
+    if isinstance(value, str):
+        return json.dumps(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(str(item) for item in value) + "]"
+    return str(value)
+
+
+def _count_conversion_tables(conversion: DoclingConversionResult) -> int:
+    return _count_tables(conversion.tables_json)
 
 
 def _count_tables(tables_json: str | None) -> int:

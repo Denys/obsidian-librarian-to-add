@@ -104,7 +104,6 @@ def ingest_pdf_to_ingestion(
     archived_previous = None
     if out_dir_exists:
         archived_previous = archive_existing_slug(ingestion_root=ingestion_root, slug_dir=out_dir)
-
     temp_dir.replace(out_dir)
     return IngestResult(
         slug=slug,

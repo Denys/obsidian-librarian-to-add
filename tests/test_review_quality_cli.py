@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from tests.test_note_quality import source_note
 
 from obsidian_librarian.cli import main
+from tests.test_note_quality import source_note
 
 
 def test_cli_help_includes_review_quality(capsys: pytest.CaptureFixture[str]) -> None:

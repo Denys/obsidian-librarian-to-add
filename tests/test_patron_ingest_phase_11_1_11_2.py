@@ -134,12 +134,10 @@ def test_ingest_conversion_failure_leaves_no_slug_directory(tmp_path: Path, monk
     assert not (vault / "91_Ingestion" / "fails").exists()
 
 
-def test_force_conversion_failure_keeps_existing_slug_directory(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_force_failure_preserves_existing_slug_directory(tmp_path: Path, monkeypatch) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
-    pdf = tmp_path / "stable.pdf"
+    pdf = tmp_path / "keep.pdf"
     pdf.write_bytes(b"%PDF-1.4\n")
 
     monkeypatch.setattr(
@@ -147,7 +145,7 @@ def test_force_conversion_failure_keeps_existing_slug_directory(
         lambda _p: _fake_conversion(),
     )
     first = ingest_pdf_to_ingestion(pdf, vault)
-    assert first.output_dir.exists()
+    original_text = (first.output_dir / "01_full-document.md").read_text(encoding="utf-8")
 
     def raise_error(_p: str | Path) -> DoclingConversionResult:
         raise RuntimeError("docling boom")
@@ -160,5 +158,7 @@ def test_force_conversion_failure_keeps_existing_slug_directory(
     with pytest.raises(RuntimeError):
         ingest_pdf_to_ingestion(pdf, vault, force=True)
 
-    assert first.output_dir.exists()
-    assert not (vault / "91_Ingestion" / "_archive").exists()
+    out_dir = vault / "91_Ingestion" / "keep"
+    assert out_dir.exists()
+    assert (out_dir / "01_full-document.md").read_text(encoding="utf-8") == original_text
+    assert not (vault / "91_Ingestion" / "_archive" / "keep").exists()

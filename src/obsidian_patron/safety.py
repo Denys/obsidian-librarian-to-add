@@ -36,11 +36,12 @@ def validate_ingestion_write_contract(
     origin: str,
     ingest_run_id: str,
     source_pdf: Path | str,
+    vault_root: Path | str | None = None,
 ) -> None:
     """Validate freshly generated notes before publishing them under 91_Ingestion.
 
-    The explicit linking phase is responsible for adding wikilinks later, so fresh
-    ingestion output may not contain wikilinks that could bypass promotion review.
+    The explicit linking phase is responsible for adding trusted-note wikilinks later, so
+    fresh ingestion output may not contain wikilinks that already target trusted vault notes.
     """
 
     if not ingestion_dir.exists() or not ingestion_dir.is_dir():
@@ -48,6 +49,7 @@ def validate_ingestion_write_contract(
 
     _validate_uuid(ingest_run_id)
     source_pdf_text = _normalize_source_pdf(source_pdf)
+    trusted_targets = _trusted_wikilink_targets(vault_root) if vault_root is not None else None
     markdown_paths = _normal_markdown_files(ingestion_dir)
     if not markdown_paths:
         raise IngestionContractError(f"No Markdown notes generated in: {ingestion_dir}")
@@ -69,7 +71,7 @@ def validate_ingestion_write_contract(
             raise IngestionContractError(
                 f"{relative} uses legacy section field; use source_section instead"
             )
-        _reject_fresh_wikilinks(text, relative)
+        _reject_trusted_wikilinks(text, relative, trusted_targets)
 
 
 def _normal_markdown_files(root: Path) -> tuple[Path, ...]:
@@ -123,8 +125,44 @@ def _require_non_empty_field(fields: dict[str, str], relative: str, key: str) ->
         raise IngestionContractError(f"{relative} must include non-empty {key}")
 
 
-def _reject_fresh_wikilinks(text: str, relative: str) -> None:
-    if re.search(r"\[\[[^\]]+\]\]", text):
+def _reject_trusted_wikilinks(text: str, relative: str, trusted_targets: set[str] | None) -> None:
+    targets = _wikilink_targets(text)
+    blocked = targets if trusted_targets is None else targets.intersection(trusted_targets)
+    if blocked:
+        rendered = ", ".join(sorted(blocked))
         raise IngestionContractError(
-            f"{relative} contains wikilinks before the explicit linking/promotion phase"
+            f"{relative} links to trusted notes before the explicit linking/promotion phase: "
+            f"{rendered}"
         )
+
+
+def _wikilink_targets(text: str) -> set[str]:
+    targets: set[str] = set()
+    for match in re.finditer(r"\[\[([^\]]+)\]\]", text):
+        raw_target = match.group(1).split("|", 1)[0].split("#", 1)[0].strip()
+        normalized = _normalize_wikilink_target(raw_target)
+        if normalized:
+            targets.add(normalized)
+    return targets
+
+
+def _trusted_wikilink_targets(vault_root: Path | str) -> set[str]:
+    vault = Path(vault_root).expanduser().resolve(strict=False)
+    targets: set[str] = set()
+    for path in sorted(vault.rglob("*.md")):
+        resolved = path.resolve(strict=False)
+        if _is_untrusted_workspace_note(vault, resolved):
+            continue
+        relative = resolved.relative_to(vault).with_suffix("").as_posix()
+        targets.add(_normalize_wikilink_target(relative))
+        targets.add(_normalize_wikilink_target(resolved.stem))
+    return {target for target in targets if target}
+
+
+def _is_untrusted_workspace_note(vault: Path, path: Path) -> bool:
+    relative = path.relative_to(vault)
+    return bool(relative.parts and relative.parts[0] in {"90_Staging", "91_Ingestion"})
+
+
+def _normalize_wikilink_target(target: str) -> str:
+    return re.sub(r"\s+", " ", target).strip().casefold()

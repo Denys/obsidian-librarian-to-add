@@ -196,57 +196,102 @@ def test_ingestion_write_contract_rejects_missing_frontmatter(tmp_path: Path) ->
         )
 
 
-def test_ingestion_write_contract_rejects_fresh_wikilinks(tmp_path: Path) -> None:
-    ingestion_dir = tmp_path / "91_Ingestion" / "linked"
+def test_ingestion_write_contract_rejects_fresh_wikilinks_to_trusted_notes(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    trusted = vault / "20_Power-Electronics"
+    trusted.mkdir(parents=True)
+    (trusted / "Trusted Hub.md").write_text("# Trusted Hub\n", encoding="utf-8")
+
+    ingestion_dir = vault / "91_Ingestion" / "linked"
     ingestion_dir.mkdir(parents=True)
     source_pdf = tmp_path / "linked.pdf"
     source_pdf.write_bytes(b"%PDF-1.4\n")
     run_id = "11111111-1111-4111-8111-111111111111"
     (ingestion_dir / "01_full-document.md").write_text(
-        "---\n"
-        "status: ingested\n"
-        "origin: linked\n"
-        f"ingest_run_id: {run_id}\n"
-        f"source_pdf: {source_pdf.resolve(strict=False).as_posix()}\n"
-        "source_section: full-document\n"
-        "---\n\n"
-        "This pre-links to [[Trusted Hub]].\n",
+        _contract_note(
+            origin="linked",
+            run_id=run_id,
+            source_pdf=source_pdf,
+            body="This pre-links to [[Trusted Hub]].\n",
+        ),
         encoding="utf-8",
     )
 
-    with pytest.raises(IngestionContractError, match="contains wikilinks"):
+    with pytest.raises(IngestionContractError, match="links to trusted notes"):
         validate_ingestion_write_contract(
             ingestion_dir,
             origin="linked",
             ingest_run_id=run_id,
             source_pdf=source_pdf,
+            vault_root=vault,
         )
+
+
+def test_ingestion_write_contract_allows_unresolved_source_wikilinks(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    ingestion_dir = vault / "91_Ingestion" / "linked"
+    ingestion_dir.mkdir(parents=True)
+    source_pdf = tmp_path / "linked.pdf"
+    source_pdf.write_bytes(b"%PDF-1.4\n")
+    run_id = "11111111-1111-4111-8111-111111111111"
+    (ingestion_dir / "01_full-document.md").write_text(
+        _contract_note(
+            origin="linked",
+            run_id=run_id,
+            source_pdf=source_pdf,
+            body="The PDF literally mentions [[Unresolved Source Link]].\n",
+        ),
+        encoding="utf-8",
+    )
+
+    validate_ingestion_write_contract(
+        ingestion_dir,
+        origin="linked",
+        ingest_run_id=run_id,
+        source_pdf=source_pdf,
+        vault_root=vault,
+    )
 
 
 def test_ingest_validation_failure_cleans_temp_and_leaves_no_slug_directory(
     tmp_path: Path, monkeypatch
 ) -> None:
     vault = tmp_path / "vault"
-    vault.mkdir()
+    trusted = vault / "20_Power-Electronics"
+    trusted.mkdir(parents=True)
+    (trusted / "Trusted Hub.md").write_text("# Trusted Hub\n", encoding="utf-8")
     pdf = tmp_path / "invalid.pdf"
     pdf.write_bytes(b"%PDF-1.4\n")
 
     monkeypatch.setattr(
         "obsidian_patron.docling_pipe.convert_pdf_with_docling",
-        lambda _p: _fake_conversion(),
+        lambda _p: DoclingConversionResult(
+            markdown="# Converted\n\nThis pre-links to [[Trusted Hub]].",
+            structured_json='{"kind":"docling"}',
+            engine_version="docling-test",
+            tables_json=None,
+            assets=(),
+        ),
     )
 
-    def reject_contract(*_args, **_kwargs) -> None:
-        raise IngestionContractError("contract boom")
-
-    monkeypatch.setattr(
-        "obsidian_patron.docling_pipe.validate_ingestion_write_contract",
-        reject_contract,
-    )
-
-    with pytest.raises(IngestionContractError, match="contract boom"):
+    with pytest.raises(IngestionContractError, match="links to trusted notes"):
         ingest_pdf_to_ingestion(pdf, vault)
 
     ingestion_root = vault / "91_Ingestion"
     assert not (ingestion_root / "invalid").exists()
     assert not tuple(ingestion_root.glob(".invalid.tmp-*"))
+
+
+def _contract_note(*, origin: str, run_id: str, source_pdf: Path, body: str) -> str:
+    return (
+        "---\n"
+        "status: ingested\n"
+        f"origin: {origin}\n"
+        f"ingest_run_id: {run_id}\n"
+        f"source_pdf: {source_pdf.resolve(strict=False).as_posix()}\n"
+        "source_section: full-document\n"
+        "---\n\n"
+        f"{body}"
+    )

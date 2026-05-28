@@ -123,6 +123,7 @@ def ingest_pdf_to_ingestion(
             origin=slug,
             ingest_run_id=run_id,
             source_pdf=source,
+            vault_root=vault,
         )
 
         archived_previous = None

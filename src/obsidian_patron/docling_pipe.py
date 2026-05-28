@@ -39,11 +39,9 @@ def ingest_pdf_to_ingestion(
 
     slug = slugify(source.stem)
     out_dir = ensure_under(ingestion_root, ingestion_root / slug)
-    archived_previous = None
-    if out_dir.exists():
-        if not force:
-            raise FileExistsError(f"Ingestion directory exists: {out_dir}. Re-run with --force.")
-        archived_previous = archive_existing_slug(ingestion_root=ingestion_root, slug_dir=out_dir)
+    out_dir_exists = out_dir.exists()
+    if out_dir_exists and not force:
+        raise FileExistsError(f"Ingestion directory exists: {out_dir}. Re-run with --force.")
 
     run_id = str(uuid.uuid4())
     conversion = convert_pdf_with_docling(source)
@@ -102,6 +100,10 @@ def ingest_pdf_to_ingestion(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+    archived_previous = None
+    if out_dir_exists:
+        archived_previous = archive_existing_slug(ingestion_root=ingestion_root, slug_dir=out_dir)
 
     temp_dir.replace(out_dir)
     return IngestResult(

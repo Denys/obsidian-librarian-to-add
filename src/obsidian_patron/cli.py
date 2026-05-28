@@ -79,6 +79,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Unmatched candidates: {result.unmatched_count}")
         print(f"Unmatched report: {result.unmatched_report}")
         return 0
+
     if args.command == "promote":
         try:
             if args.to_staging:

@@ -71,8 +71,18 @@ def ingest_pdf_to_ingestion(
     )
     (temp_dir / "00_metadata.md").write_text(metadata_text, encoding="utf-8")
 
+    section_text = (
+        "---\n"
+        "status: ingested\n"
+        f"origin: {slug}\n"
+        f"ingest_run_id: {run_id}\n"
+        f"source_pdf: {source.as_posix()}\n"
+        "section: full-document\n"
+        "---\n\n"
+        f"{conversion.markdown.strip()}\n"
+    )
     (temp_dir / "01_full-document.md").write_text(
-        conversion.markdown.strip() + "\n",
+        section_text,
         encoding="utf-8",
     )
     for idx, asset in enumerate(conversion.assets, start=1):
@@ -92,7 +102,7 @@ def ingest_pdf_to_ingestion(
             "metadata": "00_metadata.md",
             "section_notes": ["01_full-document.md"],
             "attachments_count": len(conversion.assets),
-            "tables_count": 0 if conversion.tables_json is None else len(conversion.tables_json),
+            "tables_count": _count_tables(conversion.tables_json),
         },
     }
     temp_manifest = temp_dir / "_ingest_manifest.json"
@@ -104,7 +114,6 @@ def ingest_pdf_to_ingestion(
     archived_previous = None
     if out_dir_exists:
         archived_previous = archive_existing_slug(ingestion_root=ingestion_root, slug_dir=out_dir)
-
     temp_dir.replace(out_dir)
     return IngestResult(
         slug=slug,
@@ -112,3 +121,21 @@ def ingest_pdf_to_ingestion(
         archived_previous=archived_previous,
         manifest_path=out_dir / "_ingest_manifest.json",
     )
+
+
+def _count_tables(tables_json: str | None) -> int:
+    if not tables_json:
+        return 0
+    try:
+        payload = json.loads(tables_json)
+    except json.JSONDecodeError:
+        return 0
+    if isinstance(payload, list):
+        return len(payload)
+    if isinstance(payload, dict):
+        tables = payload.get("tables")
+        if isinstance(tables, list):
+            return len(tables)
+        if tables:
+            return 1
+    return 0

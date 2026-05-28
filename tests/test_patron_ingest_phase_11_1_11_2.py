@@ -90,3 +90,75 @@ def test_ingest_pdf_existing_slug_requires_force(tmp_path: Path, monkeypatch) ->
     ingest_pdf_to_ingestion(pdf, vault)
     with pytest.raises(FileExistsError):
         ingest_pdf_to_ingestion(pdf, vault, force=False)
+
+
+def test_ingest_manifest_and_frontmatter_include_ingest_run_id(tmp_path: Path, monkeypatch) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    pdf = tmp_path / "timing.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        lambda _p: _fake_conversion(),
+    )
+
+    result = ingest_pdf_to_ingestion(pdf, vault)
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    run_id = manifest["ingest_run_id"]
+    assert run_id
+
+    index_text = (result.output_dir / "index.md").read_text(encoding="utf-8")
+    metadata_text = (result.output_dir / "00_metadata.md").read_text(encoding="utf-8")
+    assert f"ingest_run_id: {run_id}" in index_text
+    assert f"ingest_run_id: {run_id}" in metadata_text
+
+
+def test_ingest_conversion_failure_leaves_no_slug_directory(tmp_path: Path, monkeypatch) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    pdf = tmp_path / "fails.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+
+    def raise_error(_p: str | Path) -> DoclingConversionResult:
+        raise RuntimeError("docling boom")
+
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        raise_error,
+    )
+
+    with pytest.raises(RuntimeError):
+        ingest_pdf_to_ingestion(pdf, vault)
+
+    assert not (vault / "91_Ingestion" / "fails").exists()
+
+
+def test_force_conversion_failure_keeps_existing_slug_directory(
+    tmp_path: Path, monkeypatch
+) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    pdf = tmp_path / "stable.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        lambda _p: _fake_conversion(),
+    )
+    first = ingest_pdf_to_ingestion(pdf, vault)
+    assert first.output_dir.exists()
+
+    def raise_error(_p: str | Path) -> DoclingConversionResult:
+        raise RuntimeError("docling boom")
+
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        raise_error,
+    )
+
+    with pytest.raises(RuntimeError):
+        ingest_pdf_to_ingestion(pdf, vault, force=True)
+
+    assert first.output_dir.exists()
+    assert not (vault / "91_Ingestion" / "_archive").exists()

@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from tests.test_note_quality import source_note
 
 from obsidian_librarian.cli import main
+from tests.test_note_quality import source_note
 
 
 def test_enrich_mock_single_file_draft(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -28,10 +28,6 @@ manually decide whether it belongs in the vault.
 
 ## System Map
 
-The diagram uses the same class-based Mermaid style as the
-[Insane-Soundbar README](https://github.com/babeinlovexd/Insane-Soundbar/tree/main):
-layered subgraphs, colored node classes, and labeled control/data links.
-
 ```mermaid
 flowchart TD
     accTitle: Obsidian Librarian System Map

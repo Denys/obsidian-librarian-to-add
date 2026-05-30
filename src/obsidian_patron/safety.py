@@ -53,6 +53,10 @@ def validate_ingestion_write_contract(
     markdown_paths = _normal_markdown_files(ingestion_dir)
     if not markdown_paths:
         raise IngestionContractError(f"No Markdown notes generated in: {ingestion_dir}")
+    # Same-folder links (e.g. the index.md table of contents) target freshly generated
+    # section notes, not trusted vault notes. Exempt them so a trusted note whose stem
+    # collides with a generated section filename does not block an otherwise valid ingest.
+    local_targets = _local_note_targets(ingestion_dir)
 
     for path in markdown_paths:
         relative = path.relative_to(ingestion_dir).as_posix()
@@ -71,11 +75,23 @@ def validate_ingestion_write_contract(
             raise IngestionContractError(
                 f"{relative} uses legacy section field; use source_section instead"
             )
-        _reject_trusted_wikilinks(text, relative, trusted_targets)
+        _reject_trusted_wikilinks(text, relative, trusted_targets, local_targets)
 
 
 def _normal_markdown_files(root: Path) -> tuple[Path, ...]:
     return tuple(sorted(path for path in root.rglob("*.md") if not path.name.startswith("_")))
+
+
+def _local_note_targets(ingestion_dir: Path) -> set[str]:
+    """Normalized wikilink targets for notes generated inside this ingestion folder."""
+    root = ingestion_dir.resolve(strict=False)
+    targets: set[str] = set()
+    for path in sorted(root.rglob("*.md")):
+        resolved = path.resolve(strict=False)
+        relative = resolved.relative_to(root).with_suffix("").as_posix()
+        targets.add(_normalize_wikilink_target(relative))
+        targets.add(_normalize_wikilink_target(resolved.stem))
+    return {target for target in targets if target}
 
 
 def _requires_source_section(path: Path) -> bool:
@@ -125,8 +141,13 @@ def _require_non_empty_field(fields: dict[str, str], relative: str, key: str) ->
         raise IngestionContractError(f"{relative} must include non-empty {key}")
 
 
-def _reject_trusted_wikilinks(text: str, relative: str, trusted_targets: set[str] | None) -> None:
-    targets = _wikilink_targets(text)
+def _reject_trusted_wikilinks(
+    text: str,
+    relative: str,
+    trusted_targets: set[str] | None,
+    local_targets: set[str],
+) -> None:
+    targets = _wikilink_targets(text) - local_targets
     blocked = targets if trusted_targets is None else targets.intersection(trusted_targets)
     if blocked:
         rendered = ", ".join(sorted(blocked))

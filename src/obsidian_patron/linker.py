@@ -4,7 +4,21 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from obsidian_inventory import build_index, extract_frontmatter, extract_headings
 from obsidian_patron.safety import ensure_under
+
+GENERIC_HEADINGS = {
+    "abstract",
+    "appendix",
+    "conclusion",
+    "contents",
+    "glossary",
+    "index",
+    "introduction",
+    "overview",
+    "references",
+    "summary",
+}
 
 
 @dataclass(frozen=True)
@@ -20,6 +34,8 @@ class LinkResult:
 class Candidate:
     text: str
     source: Path
+    source_section: str
+    context: str
 
 
 def link_ingested_notes(slug: str, vault_root: str | Path) -> LinkResult:
@@ -34,13 +50,13 @@ def link_ingested_notes(slug: str, vault_root: str | Path) -> LinkResult:
     candidates = _collect_candidates(note_paths)
 
     matched: dict[str, str] = {}
-    unmatched: dict[str, list[Path]] = {}
+    unmatched: dict[str, list[Candidate]] = {}
     for candidate in candidates:
         key = candidate.text.casefold()
         if key in inventory:
             matched[candidate.text] = inventory[key]
         else:
-            unmatched.setdefault(candidate.text, []).append(candidate.source)
+            unmatched.setdefault(candidate.text, []).append(candidate)
 
     linked_files: list[Path] = []
     for note_path in note_paths:
@@ -75,10 +91,22 @@ def _collect_candidates(note_paths: tuple[Path, ...]) -> tuple[Candidate, ...]:
     candidates: dict[tuple[str, Path], Candidate] = {}
     for path in note_paths:
         text = path.read_text(encoding="utf-8")
-        for value in _heading_candidates(text) + _bold_candidates(text):
+        source_section = _source_section(path, text)
+        values = (
+            _heading_candidates(text)
+            + _bold_candidates(text)
+            + _glossary_candidates(text)
+            + _frequent_phrase_candidates(text)
+        )
+        for value in values:
             normalized = _normalize_candidate(value)
             if normalized:
-                candidates[(normalized, path)] = Candidate(normalized, path)
+                candidates[(normalized, path)] = Candidate(
+                    normalized,
+                    path,
+                    source_section,
+                    _example_context(text, normalized),
+                )
     return tuple(
         candidates[key]
         for key in sorted(candidates, key=lambda item: (item[0].casefold(), item[1].as_posix()))
@@ -86,9 +114,7 @@ def _collect_candidates(note_paths: tuple[Path, ...]) -> tuple[Candidate, ...]:
 
 
 def _heading_candidates(text: str) -> list[str]:
-    return [
-        match.group(1).strip() for match in re.finditer(r"^#{1,6}\s+(.+?)\s*$", text, re.MULTILINE)
-    ]
+    return extract_headings(text)
 
 
 def _bold_candidates(text: str) -> list[str]:
@@ -104,55 +130,24 @@ def _normalize_candidate(value: str) -> str | None:
 
 def _build_match_inventory(*, vault: Path, slug_dir: Path) -> dict[str, str]:
     matches: dict[str, str] = {}
-    for path in sorted(vault.rglob("*.md")):
-        resolved = path.resolve(strict=False)
-        if resolved.is_relative_to(slug_dir.resolve(strict=False)):
+    records = build_index(vault, "vault-and-staging").indexed_records
+    heading_targets: dict[str, set[str]] = {}
+    for record in records:
+        record_path = (vault / record.path).resolve(strict=False)
+        if record_path.is_relative_to(slug_dir.resolve(strict=False)):
             continue
-        relative = resolved.relative_to(vault)
-        if relative.parts and relative.parts[0] == "91_Ingestion":
-            continue
-        text = path.read_text(encoding="utf-8")
-        title = _frontmatter_value(text, "title") or path.stem
-        _add_match(matches, title, title)
-        _add_match(matches, path.stem, title)
-        for alias in _frontmatter_list(text, "aliases"):
-            _add_match(matches, alias, title)
-        for heading in _heading_candidates(text):
-            _add_match(matches, heading, title)
+        _add_match(matches, record.title, record.title)
+        _add_match(matches, Path(record.path).stem, record.title)
+        for alias in record.aliases:
+            _add_match(matches, alias, record.title)
+        for heading in record.headings:
+            normalized = _normalize_candidate(heading)
+            if normalized and normalized.casefold() not in GENERIC_HEADINGS:
+                heading_targets.setdefault(normalized.casefold(), set()).add(record.title)
+    for heading, targets in heading_targets.items():
+        if len(targets) == 1:
+            matches.setdefault(heading, next(iter(targets)))
     return matches
-
-
-def _frontmatter_value(text: str, key: str) -> str | None:
-    frontmatter = _frontmatter(text)
-    match = re.search(rf"^{re.escape(key)}:\s*(.+?)\s*$", frontmatter, re.MULTILINE)
-    if not match:
-        return None
-    return match.group(1).strip().strip("\"'")
-
-
-def _frontmatter_list(text: str, key: str) -> tuple[str, ...]:
-    frontmatter = _frontmatter(text)
-    inline = re.search(rf"^{re.escape(key)}:\s*\[(.*?)\]\s*$", frontmatter, re.MULTILINE)
-    if inline:
-        return tuple(
-            item.strip().strip("\"'") for item in inline.group(1).split(",") if item.strip()
-        )
-    block = re.search(rf"^{re.escape(key)}:\s*\n((?:\s+-\s+.+\n?)*)", frontmatter, re.MULTILINE)
-    if not block:
-        return ()
-    return tuple(
-        line.split("-", 1)[1].strip().strip("\"'")
-        for line in block.group(1).splitlines()
-        if line.strip().startswith("-")
-    )
-
-
-def _frontmatter(text: str) -> str:
-    if not text.startswith("---\n"):
-        return ""
-    _, _, rest = text.partition("---\n")
-    frontmatter, sep, _body = rest.partition("\n---\n")
-    return frontmatter if sep else ""
 
 
 def _add_match(matches: dict[str, str], candidate: str, target: str) -> None:
@@ -199,14 +194,61 @@ def _replace_first_body_occurrence(text: str, needle: str, replacement: str) -> 
     return text
 
 
-def _render_unmatched_report(unmatched: dict[str, list[Path]]) -> str:
+def _source_section(path: Path, text: str) -> str:
+    frontmatter = extract_frontmatter(text)
+    return frontmatter.get("source_section") or path.stem
+
+
+def _glossary_candidates(text: str) -> list[str]:
+    if not re.search(r"^#{1,6}\s+(glossary|index)\b", text, re.IGNORECASE | re.MULTILINE):
+        return []
+    candidates: list[str] = []
+    for match in re.finditer(r"^\s*[-*]\s+([^:\-\n]{3,80})(?::|\s+-)", text, re.MULTILINE):
+        candidates.append(match.group(1).strip())
+    return candidates
+
+
+def _frequent_phrase_candidates(text: str) -> list[str]:
+    body = re.sub(r"---\n.*?\n---\n", " ", text, count=1, flags=re.DOTALL)
+    phrases = re.findall(
+        r"\b(?:[A-Z][A-Za-z0-9_-]+|[a-z][a-z0-9_-]{3,})"
+        r"(?:\s+(?:[A-Z][A-Za-z0-9_-]+|[a-z][a-z0-9_-]{3,})){1,3}\b",
+        body,
+    )
+    counts: dict[str, int] = {}
+    for phrase in phrases:
+        words = [word.casefold() for word in phrase.split()]
+        if any(word in {"this", "that", "with", "from", "into", "section"} for word in words):
+            continue
+        normalized = " ".join(phrase.split())
+        counts[normalized] = counts.get(normalized, 0) + 1
+    return [phrase for phrase, count in counts.items() if count >= 2]
+
+
+def _example_context(text: str, candidate: str) -> str:
+    compact = re.sub(r"\s+", " ", text)
+    match = re.search(re.escape(candidate), compact, re.IGNORECASE)
+    if not match:
+        return ""
+    start = max(0, match.start() - 60)
+    end = min(len(compact), match.end() + 60)
+    return compact[start:end].strip()
+
+
+def _render_unmatched_report(unmatched: dict[str, list[Candidate]]) -> str:
     lines = ["# Candidate notes - review before creating manually", ""]
     if not unmatched:
         lines.append("- None")
         return "\n".join(lines) + "\n"
     for candidate in sorted(unmatched, key=str.casefold):
-        sources = sorted({path.name for path in unmatched[candidate]})
+        entries = unmatched[candidate]
+        sources = sorted({entry.source.name for entry in entries})
+        sections = sorted({entry.source_section for entry in entries if entry.source_section})
+        contexts = [entry.context for entry in entries if entry.context]
         lines.append(
-            f"- {candidate} (frequency: {len(unmatched[candidate])}; sources: {', '.join(sources)})"
+            f"- {candidate} (frequency: {len(entries)}; sources: {', '.join(sources)}; "
+            f"source_sections: {', '.join(sections) or 'unknown'})"
         )
+        if contexts:
+            lines.append(f"  - example: {contexts[0]}")
     return "\n".join(lines) + "\n"

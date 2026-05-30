@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from obsidian_inventory import VALID_SCOPES
 from obsidian_librarian import __version__
 from obsidian_librarian.enrich import enrich_path
 from obsidian_librarian.extractors import MockExtractor, OpenAIExtractor
@@ -104,7 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
     index.add_argument("--vault", default=".", help="Vault root path.")
     index.add_argument(
         "--scope",
-        choices=("vault", "staging", "vault-and-staging"),
+        choices=VALID_SCOPES,
         default="vault",
         help="Search/index scope.",
     )
@@ -114,7 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--vault", default=".", help="Vault root path.")
     search.add_argument(
         "--scope",
-        choices=("vault", "staging", "vault-and-staging"),
+        choices=VALID_SCOPES,
         default="vault",
         help="Search scope.",
     )

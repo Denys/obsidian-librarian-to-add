@@ -8,8 +8,11 @@ from obsidian_inventory.scanner import (
     extract_aliases,
     extract_frontmatter,
     extract_headings,
+    frontmatter_text,
     normalize_wikilink_target,
     scope_for_path,
+    set_frontmatter_fields,
+    split_frontmatter,
 )
 
 __all__ = [
@@ -20,6 +23,9 @@ __all__ = [
     "extract_aliases",
     "extract_frontmatter",
     "extract_headings",
+    "frontmatter_text",
     "normalize_wikilink_target",
     "scope_for_path",
+    "set_frontmatter_fields",
+    "split_frontmatter",
 ]

@@ -171,11 +171,42 @@ def extract_frontmatter(content: str) -> dict[str, str]:
 
 
 def frontmatter_text(content: str) -> str:
+    return split_frontmatter(content)[0]
+
+
+def split_frontmatter(content: str) -> tuple[str, str]:
+    """Split a note into (frontmatter_block, body).
+
+    Returns ("", content) when the note has no well-formed ``---`` frontmatter.
+    This is the single canonical frontmatter splitter for both read and write paths.
+    """
     if not content.startswith("---\n"):
-        return ""
+        return "", content
     rest = content.removeprefix("---\n")
-    frontmatter, sep, _body = rest.partition("\n---\n")
-    return frontmatter if sep else ""
+    frontmatter, sep, body = rest.partition("\n---\n")
+    if not sep:
+        return "", content
+    return frontmatter, body
+
+
+def set_frontmatter_fields(content: str, fields: dict[str, str | None]) -> str:
+    """Return ``content`` with the given frontmatter fields set, removed, or replaced.
+
+    A ``None`` value removes the key; any other value replaces (or appends) it while
+    leaving untouched fields and their formatting intact. This is the canonical
+    frontmatter writer so the index and any writer stay byte-compatible.
+    """
+    frontmatter, body = split_frontmatter(content)
+    lines = frontmatter.splitlines() if frontmatter else []
+    for key, value in fields.items():
+        lines = [line for line in lines if not re.match(rf"^{re.escape(key)}:\s*", line)]
+        if value is not None:
+            lines.append(f"{key}: {value}")
+    rendered = "\n".join(lines).strip()
+    if rendered:
+        return f"---\n{rendered}\n---\n{body.lstrip(chr(10))}"
+    return body.lstrip("\n")
+
 
 
 def extract_aliases(frontmatter: dict[str, str]) -> tuple[str, ...]:

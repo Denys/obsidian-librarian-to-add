@@ -384,6 +384,42 @@ def test_ingestion_write_contract_rejects_fresh_wikilinks_to_trusted_notes(
         )
 
 
+def test_ingest_allows_toc_links_when_trusted_stem_collides(tmp_path: Path, monkeypatch) -> None:
+    # A trusted note whose stem matches a generated section filename must not make the
+    # index.md table-of-contents link (a same-folder sibling) look like a premature
+    # trusted link. Regression for the trusted-stem collision contract bug.
+    vault = tmp_path / "vault"
+    trusted = vault / "20_Power-Electronics"
+    trusted.mkdir(parents=True)
+    (trusted / "01_introduction.md").write_text(
+        "---\nstatus: trusted\n---\n# Introduction\n", encoding="utf-8"
+    )
+    pdf = tmp_path / "handbook.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+
+    conversion = DoclingConversionResult(
+        markdown="# Introduction\n\nBody",
+        structured_json='{"kind":"docling"}',
+        engine_version="docling-test",
+        sections=(
+            DoclingSection(
+                title="Introduction",
+                heading_path="Introduction",
+                markdown="# Introduction\n\nBody",
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        lambda _p: conversion,
+    )
+
+    result = ingest_pdf_to_ingestion(pdf, vault)
+    index_text = (result.output_dir / "index.md").read_text(encoding="utf-8")
+    assert "[[01_introduction|Introduction]]" in index_text
+    assert (result.output_dir / "01_introduction.md").exists()
+
+
 def test_ingestion_write_contract_allows_unresolved_source_wikilinks(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     ingestion_dir = vault / "91_Ingestion" / "linked"

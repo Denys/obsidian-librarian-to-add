@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -14,7 +15,11 @@ from obsidian_librarian.pdf_docling import (
     DoclingSection,
     convert_pdf_with_docling,
 )
-from obsidian_patron.safety import archive_existing_slug, ensure_under
+from obsidian_patron.safety import (
+    archive_existing_slug,
+    ensure_under,
+    validate_ingestion_write_contract,
+)
 
 
 @dataclass(frozen=True)
@@ -53,46 +58,61 @@ def ingest_pdf_to_ingestion(
 
     temp_dir = ensure_under(ingestion_root, ingestion_root / f".{slug}.tmp-{run_id}")
     temp_dir.mkdir(parents=True, exist_ok=False)
-    (temp_dir / "attachments").mkdir(exist_ok=True)
-    (temp_dir / "tables").mkdir(exist_ok=True)
+    try:
+        (temp_dir / "attachments").mkdir(exist_ok=True)
+        (temp_dir / "tables").mkdir(exist_ok=True)
 
-    sections = _section_notes(conversion)
-    section_files = _write_section_notes(temp_dir, sections, source, slug, run_id)
-    _write_index_note(temp_dir, source, slug, run_id, section_files)
-    _write_metadata_note(temp_dir, source, slug, run_id, conversion.metadata or {})
-    _write_table_sidecars(temp_dir, conversion)
-    attachment_files = _write_assets(temp_dir, conversion)
+        sections = _section_notes(conversion)
+        section_files = _write_section_notes(temp_dir, sections, source, slug, run_id)
+        _write_index_note(temp_dir, source, slug, run_id, section_files)
+        _write_metadata_note(temp_dir, source, slug, run_id, conversion.metadata or {})
+        _write_table_sidecars(temp_dir, conversion)
+        attachment_files = _write_assets(temp_dir, conversion)
 
-    manifest = {
-        "source_pdf": source.as_posix(),
-        "source_hash": hashlib.sha256(source.read_bytes()).hexdigest(),
-        "ingest_time": datetime.now(timezone.utc).isoformat(),
-        "ingest_tool": "docling",
-        "document_type": "pdf",
-        "origin": slug,
-        "ingest_run_id": run_id,
-        "outputs": {
-            "index": "index.md",
-            "metadata": "00_metadata.md",
-            "section_notes": [filename for filename, _title in section_files],
-            "attachments": attachment_files,
-            "attachments_count": len(conversion.assets),
-            "tables_count": _count_conversion_tables(conversion),
-            "code_blocks_count": len(conversion.code_blocks),
-            "figure_captions_count": len(conversion.figure_captions),
-            "glossary_index_hints": list(conversion.glossary_index_hints),
-        },
-    }
-    temp_manifest = temp_dir / "_ingest_manifest.json"
-    temp_manifest.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+        manifest = {
+            "source_pdf": source.as_posix(),
+            "source_hash": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "ingest_time": datetime.now(timezone.utc).isoformat(),
+            "ingest_tool": "docling",
+            "document_type": "pdf",
+            "origin": slug,
+            "ingest_run_id": run_id,
+            "outputs": {
+                "index": "index.md",
+                "metadata": "00_metadata.md",
+                "section_notes": [filename for filename, _title in section_files],
+                "attachments": attachment_files,
+                "attachments_count": len(conversion.assets),
+                "tables_count": _count_conversion_tables(conversion),
+                "code_blocks_count": len(conversion.code_blocks),
+                "figure_captions_count": len(conversion.figure_captions),
+                "glossary_index_hints": list(conversion.glossary_index_hints),
+            },
+        }
+        temp_manifest = temp_dir / "_ingest_manifest.json"
+        temp_manifest.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
-    archived_previous = None
-    if out_dir_exists:
-        archived_previous = archive_existing_slug(ingestion_root=ingestion_root, slug_dir=out_dir)
-    temp_dir.replace(out_dir)
+        validate_ingestion_write_contract(
+            temp_dir,
+            origin=slug,
+            ingest_run_id=run_id,
+            source_pdf=source,
+            vault_root=vault,
+        )
+
+        archived_previous = None
+        if out_dir_exists:
+            archived_previous = archive_existing_slug(
+                ingestion_root=ingestion_root, slug_dir=out_dir
+            )
+        temp_dir.replace(out_dir)
+    except Exception:
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+        raise
     return IngestResult(
         slug=slug,
         output_dir=out_dir,
@@ -128,7 +148,7 @@ def _write_section_notes(
             "origin": origin,
             "ingest_run_id": run_id,
             "source_pdf": source.as_posix(),
-            "section": section_slug,
+            "source_section": _source_section(section, section_slug),
             "section_title": section.title,
             "section_kind": section_kind,
         }
@@ -149,7 +169,14 @@ def _write_index_note(
     section_files: list[tuple[str, str]],
 ) -> None:
     lines = [
-        _frontmatter({"status": "ingested", "origin": origin, "ingest_run_id": run_id}),
+        _frontmatter(
+            {
+                "status": "ingested",
+                "origin": origin,
+                "ingest_run_id": run_id,
+                "source_pdf": source.as_posix(),
+            }
+        ),
         "",
         f"# {source.stem}",
         "",
@@ -226,6 +253,13 @@ def _available_metadata_fields(metadata: dict[str, Any]) -> dict[str, Any]:
         for key in wanted
         if key in metadata and metadata[key] not in (None, "")
     }
+
+
+def _source_section(section: DoclingSection, section_slug: str) -> str:
+    heading_path = getattr(section, "heading_path", None)
+    if isinstance(heading_path, str) and heading_path.strip():
+        return heading_path.strip()
+    return section_slug
 
 
 def _frontmatter(values: dict[str, Any]) -> str:

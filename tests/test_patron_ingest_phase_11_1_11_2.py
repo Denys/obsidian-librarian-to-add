@@ -7,7 +7,12 @@ import pytest
 
 from obsidian_librarian.pdf_docling import DoclingAsset, DoclingConversionResult, DoclingSection
 from obsidian_patron.docling_pipe import ingest_pdf_to_ingestion, slugify
-from obsidian_patron.safety import archive_existing_slug, ensure_under
+from obsidian_patron.safety import (
+    IngestionContractError,
+    archive_existing_slug,
+    ensure_under,
+    validate_ingestion_write_contract,
+)
 
 
 def _fake_conversion() -> DoclingConversionResult:
@@ -37,14 +42,17 @@ def _structured_conversion() -> DoclingConversionResult:
         sections=(
             DoclingSection(
                 title="Chapter 1: Foundations",
+                heading_path="Chapter 1: Foundations",
                 markdown="# Chapter 1: Foundations\n\nIntro text.",
             ),
             DoclingSection(
                 title="Power Tables",
+                heading_path="Power Tables",
                 markdown="# Power Tables\n\n| V | I |\n| - | - |",
             ),
             DoclingSection(
                 title="Glossary",
+                heading_path="Glossary",
                 markdown="# Glossary\n\n- MOSFET: switch",
             ),
         ),
@@ -161,7 +169,10 @@ def test_ingest_manifest_and_frontmatter_include_ingest_run_id(tmp_path: Path, m
     assert "status: ingested" in section_text
     assert "origin: timing" in section_text
     assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in section_text
-    assert "section: converted" in section_text
+    assert "source_section: converted" in section_text
+    assert "\nsection: converted\n" not in section_text
+    assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in index_text
+    assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in metadata_text
 
 
 def test_ingest_conversion_failure_leaves_no_slug_directory(tmp_path: Path, monkeypatch) -> None:
@@ -239,6 +250,10 @@ def test_ingest_pdf_writes_multi_section_notes_and_toc_links(tmp_path: Path, mon
     assert "[[02_power-tables|Power Tables]]" in index_text
     assert "[[03_glossary|Glossary]]" in index_text
 
+    section_text = (out / "01_chapter-1-foundations.md").read_text(encoding="utf-8")
+    assert 'source_section: "Chapter 1: Foundations"' in section_text
+    assert "\nsection: Chapter 1: Foundations\n" not in section_text
+
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
     assert manifest["outputs"]["section_notes"] == [
         "01_chapter-1-foundations.md",
@@ -309,3 +324,121 @@ def test_ingest_pdf_propagates_docling_metadata(tmp_path: Path, monkeypatch) -> 
     assert manifest["outputs"]["tables_count"] == 1
     assert manifest["outputs"]["code_blocks_count"] == 1
     assert manifest["outputs"]["figure_captions_count"] == 1
+
+
+def test_ingestion_write_contract_rejects_missing_frontmatter(tmp_path: Path) -> None:
+    ingestion_dir = tmp_path / "91_Ingestion" / "bad"
+    ingestion_dir.mkdir(parents=True)
+    source_pdf = tmp_path / "bad.pdf"
+    source_pdf.write_bytes(b"%PDF-1.4\n")
+    run_id = "11111111-1111-4111-8111-111111111111"
+    (ingestion_dir / "01_full-document.md").write_text("# Missing frontmatter\n", encoding="utf-8")
+
+    with pytest.raises(IngestionContractError, match="missing YAML frontmatter"):
+        validate_ingestion_write_contract(
+            ingestion_dir,
+            origin="bad",
+            ingest_run_id=run_id,
+            source_pdf=source_pdf,
+        )
+
+
+def test_ingestion_write_contract_rejects_fresh_wikilinks_to_trusted_notes(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    trusted = vault / "20_Power-Electronics"
+    trusted.mkdir(parents=True)
+    (trusted / "Trusted Hub.md").write_text("# Trusted Hub\n", encoding="utf-8")
+
+    ingestion_dir = vault / "91_Ingestion" / "linked"
+    ingestion_dir.mkdir(parents=True)
+    source_pdf = tmp_path / "linked.pdf"
+    source_pdf.write_bytes(b"%PDF-1.4\n")
+    run_id = "11111111-1111-4111-8111-111111111111"
+    (ingestion_dir / "01_full-document.md").write_text(
+        _contract_note(
+            origin="linked",
+            run_id=run_id,
+            source_pdf=source_pdf,
+            body="This pre-links to [[Trusted Hub]].\n",
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(IngestionContractError, match="links to trusted notes"):
+        validate_ingestion_write_contract(
+            ingestion_dir,
+            origin="linked",
+            ingest_run_id=run_id,
+            source_pdf=source_pdf,
+            vault_root=vault,
+        )
+
+
+def test_ingestion_write_contract_allows_unresolved_source_wikilinks(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    ingestion_dir = vault / "91_Ingestion" / "linked"
+    ingestion_dir.mkdir(parents=True)
+    source_pdf = tmp_path / "linked.pdf"
+    source_pdf.write_bytes(b"%PDF-1.4\n")
+    run_id = "11111111-1111-4111-8111-111111111111"
+    (ingestion_dir / "01_full-document.md").write_text(
+        _contract_note(
+            origin="linked",
+            run_id=run_id,
+            source_pdf=source_pdf,
+            body="The PDF literally mentions [[Unresolved Source Link]].\n",
+        ),
+        encoding="utf-8",
+    )
+
+    validate_ingestion_write_contract(
+        ingestion_dir,
+        origin="linked",
+        ingest_run_id=run_id,
+        source_pdf=source_pdf,
+        vault_root=vault,
+    )
+
+
+def test_ingest_validation_failure_cleans_temp_and_leaves_no_slug_directory(
+    tmp_path: Path, monkeypatch
+) -> None:
+    vault = tmp_path / "vault"
+    trusted = vault / "20_Power-Electronics"
+    trusted.mkdir(parents=True)
+    (trusted / "Trusted Hub.md").write_text("# Trusted Hub\n", encoding="utf-8")
+    pdf = tmp_path / "invalid.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        lambda _p: DoclingConversionResult(
+            markdown="# Converted\n\nThis pre-links to [[Trusted Hub]].",
+            structured_json='{"kind":"docling"}',
+            engine_version="docling-test",
+            tables_json=None,
+            assets=(),
+        ),
+    )
+
+    with pytest.raises(IngestionContractError, match="links to trusted notes"):
+        ingest_pdf_to_ingestion(pdf, vault)
+
+    ingestion_root = vault / "91_Ingestion"
+    assert not (ingestion_root / "invalid").exists()
+    assert not tuple(ingestion_root.glob(".invalid.tmp-*"))
+
+
+def _contract_note(*, origin: str, run_id: str, source_pdf: Path, body: str) -> str:
+    return (
+        "---\n"
+        "status: ingested\n"
+        f"origin: {origin}\n"
+        f"ingest_run_id: {run_id}\n"
+        f"source_pdf: {source_pdf.resolve(strict=False).as_posix()}\n"
+        "source_section: full-document\n"
+        "---\n\n"
+        f"{body}"
+    )

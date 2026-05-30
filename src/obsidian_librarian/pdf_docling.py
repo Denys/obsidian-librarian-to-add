@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import import_module, metadata
 from io import BytesIO
 from pathlib import Path
@@ -25,6 +25,7 @@ class DoclingSection:
 
     title: str
     markdown: str
+    heading_path: str | None = None
     level: int = 1
     children: tuple[DoclingSection, ...] = ()
     kind: str | None = None
@@ -51,7 +52,7 @@ class DoclingConversionResult:
     tables_json: str | None = None
     assets: tuple[DoclingAsset, ...] = ()
     sections: tuple[DoclingSection, ...] = ()
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
     tables: tuple[dict[str, Any], ...] = ()
     code_blocks: tuple[str, ...] = ()
     figure_captions: tuple[str, ...] = ()
@@ -568,6 +569,9 @@ def _coerce_sections(value: Any) -> tuple[DoclingSection, ...]:
         if not isinstance(level, int):
             level = 1
         kind = item.get("kind") if isinstance(item.get("kind"), str) else None
+        heading_path = item.get("heading_path") or item.get("path") or title.strip()
+        if not isinstance(heading_path, str):
+            heading_path = title.strip()
         markdown = str(text).strip()
         if not markdown.startswith("#"):
             markdown = f"{'#' * max(level, 1)} {title.strip()}\n\n{markdown}".strip()
@@ -575,6 +579,7 @@ def _coerce_sections(value: Any) -> tuple[DoclingSection, ...]:
             DoclingSection(
                 title=title.strip(),
                 markdown=markdown + "\n",
+                heading_path=heading_path.strip(),
                 level=max(level, 1),
                 children=children,
                 kind=kind,

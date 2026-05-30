@@ -107,6 +107,9 @@ in the commands below.
 
 ## Quick Start
 
+For the full quick start, command examples, output descriptions, and review
+checklists, see [docs/13_usage_manual.md](docs/13_usage_manual.md).
+
 From your Obsidian vault root, ingest Markdown/TXT inbox files into staging:
 
 ```powershell

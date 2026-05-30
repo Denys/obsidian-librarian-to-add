@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+import types
 from pathlib import Path
 
 from obsidian_librarian.pdf_docling import DoclingConversionResult
@@ -58,6 +60,53 @@ def test_propose_llm_degrades_without_key(tmp_path: Path, monkeypatch) -> None:
         encoding="utf-8"
     )
     assert "LLM enrichment skipped" in content
+
+
+def test_propose_llm_success_is_written_only_to_proposal(
+    tmp_path: Path, monkeypatch
+) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    pdf = tmp_path / "llm.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        "obsidian_patron.docling_pipe.convert_pdf_with_docling",
+        lambda _p: _fake_conversion(),
+    )
+
+    class FakeResponses:
+        def create(self, **_kwargs):
+            return types.SimpleNamespace(
+                output_text=(
+                    "### suggested_hub\n"
+                    "20_Power-Electronics\n\n"
+                    "### abstract\n"
+                    "Mock LLM summary for review only.\n\n"
+                    "### llm_suggested_tags\n"
+                    "- llm_suggested: power-stage"
+                )
+            )
+
+    class FakeOpenAI:
+        def __init__(self):
+            self.responses = FakeResponses()
+
+    monkeypatch.setitem(
+        sys.modules,
+        "openai",
+        types.SimpleNamespace(OpenAI=FakeOpenAI),
+    )
+
+    assert main(["ingest", str(pdf), "--vault", str(vault)]) == 0
+    assert main(["propose", "llm", "--vault", str(vault), "--llm"]) == 0
+
+    slug_dir = vault / "91_Ingestion" / "llm"
+    proposal = (slug_dir / "_proposal.md").read_text(encoding="utf-8")
+    section_note = (slug_dir / "01_buck-converter-dsp.md").read_text(encoding="utf-8")
+    assert "## LLM enrichment" in proposal
+    assert "llm_suggested: power-stage" in proposal
+    assert "Mock LLM summary" not in section_note
 
 
 def test_propose_missing_slug_errors(tmp_path: Path) -> None:

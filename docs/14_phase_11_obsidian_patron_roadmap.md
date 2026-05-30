@@ -176,7 +176,7 @@ Constraints:
 
 Done criteria:
 
-- fixture PDFs (one digital-native engineering text, one scanned book, one datasheet PDF) ingest deterministically;
+- fixture PDFs (one digital-native engineering text, one scanned book, one datasheet PDF) ingest with stable structural output; `ingest_run_id` and `ingest_time` are intentionally volatile run metadata;
 - section hierarchy correct;
 - tables render as readable markdown;
 - code listings preserved with language fencing where docling identifies the language;
@@ -282,13 +282,13 @@ Deliverables:
   - explicit `--hub` argument (no default);
   - the proposal's classification matches `--hub` OR `--override` flag passed;
   - frontmatter rewritten: `status: trusted`, `promoted_from: 91_Ingestion` or `90_Staging`, `promoted_at: <timestamp>`;
-- `obsidian-patron unpromote <pdf-slug>` reverses promotion within a session, restoring previous location.
+- `obsidian-patron unpromote <pdf-slug>` reverses promotion using the persisted `_promotion.json` ledger, restoring the previous location across invocations while the ledger and original destination remain valid.
 
 Constraints:
 
 - promotion is the only operation that writes into trusted hubs;
-- promotion is mostly-reversible (directory move + frontmatter rewrite) — full reversal possible within the same session via `unpromote`;
-- after session close, reversal requires manual git revert or manual move;
+- promotion is mostly-reversible (directory move + frontmatter rewrite) — full reversal is possible via `unpromote` using the persisted promotion ledger;
+- if the ledger is removed or the original source path is occupied, reversal requires manual git revert or manual move;
 - promotion never modifies note content beyond frontmatter status fields;
 - wikilinks pointing into the promoted notes from elsewhere in the vault are NOT updated automatically (out of scope for v1).
 
@@ -296,7 +296,7 @@ Done criteria:
 
 - promotion to staging tested;
 - promotion to trusted tested with hub confirmation;
-- unpromote tested within session;
+- unpromote tested through the persisted ledger path;
 - no-content-modification invariant enforced.
 
 ## Phase 12.x — Engineering-augmented ingest (evolution track)
@@ -378,13 +378,13 @@ Every write operation is classified and handled per its irreversibility tier:
 | Create `91_Ingestion/<pdf-slug>/` | Reversible | Atomic temp-dir + move; `--force` archives prior |
 | Append to `_proposal.md` | Reversible | Plain append, file overwritable |
 | Insert wikilinks into ingested notes (11.5) | Mostly-reversible | Idempotent; re-running `link` regenerates identically |
-| `promote --to-staging` | Mostly-reversible | Directory move within `90_Staging`; `unpromote` works within session |
-| `promote --to-trusted --hub X` | Mostly-reversible (session) / Irreversible (post-session) | Directory move + frontmatter status rewrite; unpromote works within session; after session close, requires git revert or manual move |
+| `promote --to-staging` | Mostly-reversible | Directory move within `90_Staging`; `unpromote` works from the persisted `_promotion.json` ledger |
+| `promote --to-trusted --hub X` | Mostly-reversible while ledger remains valid | Directory move + frontmatter status rewrite; `unpromote` restores the source path from the persisted ledger; if the ledger is missing or the source path is occupied, use git revert or manual move |
 | Modify trusted-hub notes' content | **Forbidden in v1** | Out of scope; never attempted |
 | Modify wikilinks in trusted notes pointing to promoted content | **Forbidden in v1** | Out of scope; user responsibility |
 | Delete any vault file | **Forbidden** | Never |
 
-Session-close semantics: a "session" is a single invocation of `obsidian-patron`. Cross-session reversibility falls to git or manual operations — outside the tool's scope.
+Reversal semantics: promotion writes `_promotion.json` into the promoted slug directory. `unpromote` uses that ledger across invocations; manual recovery is required only when the ledger is missing, corrupted, or the original source path is already occupied.
 
 ## CLI surface (provisional)
 
@@ -401,7 +401,7 @@ obsidian-patron link <pdf-slug>
 obsidian-patron unmatched <pdf-slug>           # prints unmatched candidates report
 obsidian-patron promote <pdf-slug> --to-staging
 obsidian-patron promote <pdf-slug> --to-trusted --hub 20_Power-Electronics
-obsidian-patron unpromote <pdf-slug>           # within-session reversal
+obsidian-patron unpromote <pdf-slug>           # ledger-backed reversal
 obsidian-patron status <pdf-slug>              # shows current location + provenance
 ```
 
@@ -419,11 +419,11 @@ Deterministic fixtures (committed to repo, kept under 50MB total):
 Test categories:
 
 1. **Inventory regression** — shared library produces identical records for hand-authored fixtures across both binaries;
-2. **Ingest determinism** — same PDF + same docling version produces byte-identical output across runs;
+2. **Ingest determinism** — same PDF + same docling version produces stable note/tree structure; tests normalize or exclude volatile run metadata fields (`ingest_run_id`, `ingest_time`);
 3. **Write contract** — no writes outside `91_Ingestion/<pdf-slug>/` during ingest; no writes outside designated promotion targets during promote;
 4. **Atomic-write resilience** — simulated mid-run failure leaves no partial state;
 5. **Wikilink match-only** — under no condition does ingest create stub notes; regression test specifically asserts this;
-6. **Promotion reversibility** — `promote` followed by `unpromote` within session restores filesystem state;
+6. **Promotion reversibility** — `promote` followed by `unpromote` with the persisted ledger restores filesystem state;
 7. **LLM degradation** — `propose --llm` with mocked unavailable LLM produces deterministic proposal without crashing;
 8. **No network in CI** — docling runs locally; LLM mocked; no external calls.
 
@@ -452,12 +452,12 @@ New from Phase 11:
 Phase 11.x complete when:
 
 - 11.0 — this roadmap merged, safety contract documented;
-- 11.1 — fixture PDFs ingest deterministically into `91_Ingestion/<pdf-slug>/`;
+- 11.1 — fixture PDFs ingest with stable structure into `91_Ingestion/<pdf-slug>/`, with volatile run metadata explicitly accounted for;
 - 11.2 — write contract enforced by guards; atomic-write tests pass;
 - 11.3 — deterministic classifier + tagger produce reviewable proposals;
 - 11.4 — LLM-optional enrichment lands in proposals only, never in notes;
 - 11.5 — match-only wikilinks insert correctly; unmatched report generated; no autonomous stub creation;
-- 11.6 — promotion to staging and to trusted both work; unpromote works within session.
+- 11.6 — promotion to staging and to trusted both work; unpromote works through the persisted promotion ledger.
 
 Phase 12.x complete when each sub-phase ships with its own design doc + tests.
 
@@ -471,7 +471,7 @@ To support incremental delivery, each phase should be implemented and reviewed i
 4. PR-2: Implement 11.2 (write contract + guards).
 5. PR-3: Implement 11.3 (deterministic classification/tag proposals).
 6. PR-4: Implement 11.5 (deterministic match-only wikilinks and unmatched report).
-7. PR-5: Implement 11.6 (promotion + within-session unpromote).
+7. PR-5: Implement 11.6 (promotion + ledger-backed unpromote).
 8. PR-6: Implement 11.4 (optional LLM enrichment) last — additive and non-gating.
 9. Validation PR: run real ingest on 3–5 personal engineering books and capture gaps.
 10. Reassess Phase 12 priorities based on observed v1 friction.

@@ -1,187 +1,379 @@
 # Obsidian Librarian Agent
 
-Safe, deterministic-first Obsidian knowledge-base tooling.
+Safe, deterministic-first CLI tooling for turning raw files into reviewable
+Obsidian notes.
 
-This repository is the implementation workspace for an Obsidian Librarian Agent: a CLI-first assistant that converts raw Markdown/TXT inbox files into staged Obsidian notes, review reports, validation results, and later optional LLM-assisted extraction.
+This repository contains two related command-line tools:
 
-## Current status
+| Tool | Role | Writes where |
+|---|---|---|
+| `obsidian-librarian` | General deterministic inbox ingest, validation, quality review, indexing, search, and optional staged enrichment. | `90_Staging/` in draft mode. |
+| `obsidian-patron` | Engineering-PDF intake with Docling, deterministic proposals, match-only wikilinking, unmatched reports, and explicit promotion. | `91_Ingestion/`, then `90_Staging/` or a trusted hub only after `promote`. |
 
-The project has moved beyond documentation-only setup.
+Use `obsidian-librarian` when you want a conservative staged workflow for
+Markdown/TXT inboxes and read-only vault search. Use `obsidian-patron` when you
+want to convert one engineering PDF into a structured ingestion folder and
+manually decide whether it belongs in the vault.
 
-| Phase | Status | Notes |
-|---:|---|---|
-| 0 | Done | Documentation organization merged in PR #1. |
-| 1 | Done | Python package skeleton and CLI scaffold merged in PR #1. |
-| 2 | Done, verified locally | Safe staged writer implemented and covered by tests. |
-| 3 | Done, verified locally | Deterministic Markdown/TXT ingest implemented and covered by tests/evals. |
-| 4 | Done, verified locally | Staged-note validators implemented and covered by tests/ruff. |
-| 5 | Done, verified locally | Golden eval catalog and deterministic eval runner implemented and passing locally. |
-| 6 | Done | SB_OS reference intake integrated as summaries, skill review criteria, and deterministic eval ideas; raw SB_OS source remains untracked. |
-| 7 | Done, verified locally | Reusable skill refinement and deterministic note-quality eval implementation. |
-| 8 | Done, verified locally | Deterministic note-quality CLI review command. |
-| 8.5 | Done, verified in CI | Deterministic CI gates for pytest, ruff, CLI help, and eval runner. |
-| 9 | Done, verified locally | Optional LLM enrichment with deterministic mock extraction by default and OpenAI extraction behind explicit flags. |
-| 10 | Planned | Vault-aware read-only librarian layer over deterministic index/search. |
-| 11.0 | Done | PDF compatibility roadmap and contracts merged in PR #10. |
-| 11.1 | Done | PDF discovery, stdlib classifier, deterministic manifests, and review-report surface. |
-| 11.2 | Done | Optional Docling digital-PDF conversion to staged Markdown and structured JSON. |
-| 11.3a | Done | Deterministic structural validation for staged PDF manifests and artifacts. |
-| 11.3b / 11.4a | Done, verified locally | Fixture-backed PDF acceptance gates plus structural table/assets sidecar preservation. |
-| 11.4d | Done, verified locally | Docling PDF pipeline options hardened with OCR disabled by configuration. |
-| 11.5 | Done, verified locally | Deterministic table/diagram quality gates, artifact links, and review-report sidecar visibility. |
-| 11.6 | Done, targeted verified locally | Explicit scanned-PDF OCR behind `--pdf-ocr`, with review-required staged output. |
+## What It Guarantees
 
-Current local verification on the repo Python 3.14 venv:
+- Raw source files are read-only evidence.
+- No deletion behavior is implemented.
+- No overwrite by default.
+- No network calls, LLM calls, embeddings, OCR, or Agents SDK runtime by default.
+- OCR is explicit with `--pdf-ocr`.
+- LLM enrichment is explicit with `--extractor openai` or `propose --llm`.
+- Trusted vault writes happen only through `obsidian-patron promote`.
+- Wikilinking is match-only: the tool never creates stub notes.
 
-- `.venv314\Scripts\python.exe -m pytest --ignore=tests\test_pdf_docling_real_fixtures.py`: 128 passed, 1 skipped
-- `.venv314\Scripts\python.exe -m pytest tests/test_pdf_ingest.py tests/test_pdf_docling.py tests/test_pdf_validators.py -q`: 44 passed
-- `.venv314\Scripts\python.exe -m ruff check .`: passed
-- `.venv314\Scripts\python.exe -m obsidian_librarian.cli --help`: passed
-- `.venv314\Scripts\python.exe evals/run_evals.py`: passed
+## System Map
 
-Plain `python` currently resolves to Python 3.9 on this machine, which is below the project requirement (`>=3.10`) and fails before running checks.
+The diagram uses the same class-based Mermaid style as the
+[Insane-Soundbar README](https://github.com/babeinlovexd/Insane-Soundbar/tree/main):
+layered subgraphs, colored node classes, and labeled control/data links.
 
-## What works on the current implementation branch
+```mermaid
+flowchart TD
+    accTitle: Obsidian Librarian System Map
+    accDescr: Shows how source files enter the two CLI surfaces, where each command writes, and how trusted vault notes are protected by explicit promotion.
 
-Implemented commands:
+    %% Styling definitions
+    classDef sourceStyle fill:#34495E,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef librarianStyle fill:#2563EB,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef patronStyle fill:#D35400,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef inventoryStyle fill:#7C3AED,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef stagingStyle fill:#0F766E,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef trustedStyle fill:#166534,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef guardStyle fill:#B91C1C,stroke:#ffffff,stroke-width:2px,color:#ffffff;
 
-```bash
-obsidian-librarian ingest ./00_Inbox --vault . --mode draft
-obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
-obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf
-obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling
-obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling --pdf-ocr
-obsidian-librarian validate ./90_Staging
-obsidian-librarian review-quality ./90_Staging
-obsidian-librarian enrich ./90_Staging --extractor mock --mode read-only
-obsidian-librarian index --vault . --scope vault-and-staging
-obsidian-librarian search "daisy reverb" --vault . --scope vault-and-staging
-obsidian-librarian search "buck converter" --vault . --scope ingestion
-obsidian-patron ingest ./manual.pdf --vault .
-obsidian-patron propose manual --vault . [--allow-new-tags] [--llm]
-obsidian-patron link manual --vault .
-obsidian-patron unmatched manual --vault .
-obsidian-patron status manual --vault .
-obsidian-patron promote manual --vault . --to-staging
-obsidian-patron promote manual --vault . --to-trusted --hub 20_Power-Electronics
-python evals/run_evals.py
+    subgraph layer_sources["1. Source Material"]
+        inbox["Markdown / TXT inbox"]:::sourceStyle
+        batch_pdf["Inbox PDFs"]:::sourceStyle
+        engineering_pdf["Single engineering PDF"]:::sourceStyle
+    end
+
+    subgraph layer_cli["2. CLI Surfaces"]
+        librarian["obsidian-librarian<br/>ingest / validate / review / index / search"]:::librarianStyle
+        patron["obsidian-patron<br/>ingest / propose / link / promote"]:::patronStyle
+    end
+
+    subgraph layer_inventory["3. Shared Deterministic Inventory"]
+        inventory["obsidian_inventory<br/>frontmatter / aliases / headings / tags / links"]:::inventoryStyle
+    end
+
+    subgraph layer_review["4. Review Zones"]
+        staging["90_Staging<br/>draft notes and reports"]:::stagingStyle
+        ingestion["91_Ingestion<br/>PDF sections, manifest, proposal, unmatched report"]:::stagingStyle
+    end
+
+    subgraph layer_trusted["5. Trusted Vault"]
+        hubs["Trusted hub folders<br/>for promoted notes"]:::trustedStyle
+        guard["Safety gate<br/>human promotion required"]:::guardStyle
+    end
+
+    inbox -->|"draft ingest"| librarian
+    batch_pdf -->|"optional classifier / Docling path"| librarian
+    engineering_pdf -->|"Docling ingest"| patron
+
+    librarian <-->|"read-only scan/search"| inventory
+    patron <-->|"match candidates"| inventory
+
+    librarian -->|"draft writes"| staging
+    patron -->|"atomic writes"| ingestion
+    ingestion -->|"promote --to-staging"| staging
+    ingestion -->|"promote --to-trusted --hub"| guard
+    staging -->|"promote --to-trusted --hub"| guard
+    guard --> hubs
+    hubs -.->|"indexed, never auto-edited"| inventory
 ```
 
-Implemented behavior:
+## Install
 
-- scans inbox folders recursively;
-- reads Markdown and TXT files;
-- reports unsupported file extensions;
-- treats PDFs as unsupported unless `--include-pdf` is explicitly supplied;
-- with `--include-pdf`, classifies PDFs and writes deterministic manifest JSON sidecars;
-- with `--pdf-converter docling`, converts eligible PDFs to staged Markdown and structured JSON;
-- configures normal Docling PDF conversion with `PdfPipelineOptions.do_ocr=False`;
-- supports explicit scanned-PDF OCR only with `--pdf-ocr` plus `--pdf-converter docling`;
-- preserves table-like Docling structures as staged `tables.json` sidecars when present;
-- writes Docling-exported assets under staged `assets/` folders when present;
-- links structured JSON, table sidecars, and staged assets from generated PDF notes;
-- validates table sidecar fidelity against `docling.json`;
-- validates generated PDF-note links to `docling.json`, `tables.json`, and staged assets;
-- records deterministic warnings for missing figure caption metadata instead of treating it as a hard failure;
-- writes one staged PDF folder per source PDF under `90_Staging/pdf/<source-stem>/`;
-- validates staged PDF manifests and claimed artifacts through the existing `validate` command;
-- writes staged source notes under `90_Staging/`;
-- writes PDF manifests under `90_Staging/pdf/` when PDF intake is enabled in draft mode;
-- writes `review_report.md` under `90_Staging/`;
-- preserves raw source files;
-- refuses overwrite by default;
-- creates suffixed filenames for repeated ingest runs;
-- validates staged Markdown notes;
-- skips generated review reports during note validation;
-- runs deterministic golden evals without API keys, network access, or model calls.
+Use Python 3.10 or newer. On Windows, prefer the `py` launcher if bare
+`python` points to an older interpreter.
 
-## Safety posture
-
-The current implementation intentionally avoids high-risk behavior:
-
-- no deletion behavior;
-- no autonomous real-vault mutation outside `90_Staging/`;
-- no overwrite by default;
-- no external services by default;
-- no LLM calls unless enrichment is explicitly requested;
-- no automatic OCR;
-- no hidden OCR fallback;
-- no embeddings;
-- no Agents SDK runtime;
-- no Git operations from the tool itself.
-
-PDF compatibility preserves the same safety posture: raw PDFs are read-only evidence, generated notes/manifests remain staged, OCR is explicit opt-in for scanned PDFs only, and Docling integration is behind optional PDF/OCR dependency paths. The normal Docling adapter explicitly sets OCR off at PDF pipeline configuration time; if a future installed Docling package no longer exposes that switch, conversion fails instead of recording `ocr_enabled: false` without proof. The OCR adapter uses a separate Docling pipeline builder, disables remote services and external plugins, records `ocr_enabled: true`, and marks the manifest `needs_review`.
-
-## Local setup
-
-```bash
-pip install -e ".[dev]"
+```powershell
+py -3.14 -m pip install -e ".[dev]"
 ```
 
-For Docling PDF conversion:
+Install optional PDF and LLM support only when you need it:
 
-```bash
-pip install -e ".[dev,pdf]"
+```powershell
+py -3.14 -m pip install -e ".[dev,pdf,ocr,llm]"
 ```
 
-## Quick start (deterministic)
+If `python` already points to Python 3.10 or newer, it can replace `py -3.14`
+in the commands below.
 
-```bash
-pip install -e ".[dev]"
+## Quick Start
+
+From your Obsidian vault root, ingest Markdown/TXT inbox files into staging:
+
+```powershell
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft
 obsidian-librarian validate ./90_Staging
 obsidian-librarian review-quality ./90_Staging
+```
+
+Build a deterministic vault index and search it:
+
+```powershell
 obsidian-librarian index --vault . --scope vault-and-staging
 obsidian-librarian search "your topic" --vault . --scope vault-and-staging
 ```
 
-Phase 11 Patron PDF intake is separate from the read-only librarian surface:
+Ingest one engineering PDF through Patron:
 
-```bash
+```powershell
 obsidian-patron ingest ./manual.pdf --vault .
 obsidian-patron propose manual --vault .
 obsidian-patron link manual --vault .
 obsidian-patron unmatched manual --vault .
+obsidian-patron status manual --vault .
+```
+
+After review, promote it:
+
+```powershell
 obsidian-patron promote manual --vault . --to-staging
 ```
 
-`obsidian-librarian` can inspect staged PDF intake with `--scope ingestion` without gaining write behavior.
+Or promote directly to a trusted hub with an explicit hub name:
 
-PDF classifier/manifest intake is explicit:
+```powershell
+obsidian-patron promote manual --vault . --to-trusted --hub 20_Power-Electronics
+```
 
-```bash
-obsidian-librarian ingest ./00_Inbox --vault . --mode read-only --include-pdf
+Reverse a recorded promotion while the `_promotion.json` ledger remains valid:
+
+```powershell
+obsidian-patron unpromote manual --vault .
+```
+
+## Which Command Should I Use?
+
+```mermaid
+flowchart LR
+    accTitle: Command Selection Workflow
+    accDescr: Helps users choose between read-only search, staged inbox ingest, PDF intake, optional LLM enrichment, and promotion.
+
+    %% Styling definitions
+    classDef questionStyle fill:#334155,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef safeStyle fill:#2563EB,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef reviewStyle fill:#0F766E,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef patronStyle fill:#D35400,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef optionalStyle fill:#CA8A04,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+    classDef trustedStyle fill:#166534,stroke:#ffffff,stroke-width:2px,color:#ffffff;
+
+    start["What do you need?"]:::questionStyle
+    read["Find existing vault knowledge"]:::safeStyle
+    inbox["Convert Markdown / TXT inbox files"]:::reviewStyle
+    pdf_batch["Classify or convert PDFs in an inbox batch"]:::reviewStyle
+    pdf_single["Ingest one engineering PDF for review"]:::patronStyle
+    enrich["Add optional LLM extraction to staged notes"]:::optionalStyle
+    promote["Move reviewed PDF output into staging or trusted hubs"]:::trustedStyle
+
+    start --> read
+    start --> inbox
+    start --> pdf_batch
+    start --> pdf_single
+    start --> enrich
+    start --> promote
+
+    read -->|"index / search"| cmd_search["obsidian-librarian index<br/>obsidian-librarian search"]:::safeStyle
+    inbox -->|"draft mode"| cmd_ingest["obsidian-librarian ingest"]:::reviewStyle
+    pdf_batch -->|"--include-pdf / --pdf-converter docling"| cmd_pdf["obsidian-librarian ingest"]:::reviewStyle
+    pdf_single -->|"Docling pipe to 91_Ingestion"| cmd_patron["obsidian-patron ingest / propose / link"]:::patronStyle
+    enrich -->|"mock by default, OpenAI only by flag"| cmd_enrich["obsidian-librarian enrich"]:::optionalStyle
+    promote -->|"human gate"| cmd_promote["obsidian-patron promote"]:::trustedStyle
+```
+
+## Common Workflows
+
+### 1. Preview an Inbox Without Writing
+
+```powershell
+obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
+```
+
+Use this first when you want to see what would be processed before creating
+staged notes.
+
+### 2. Stage Markdown and TXT Notes
+
+```powershell
+obsidian-librarian ingest ./00_Inbox --vault . --mode draft
+obsidian-librarian validate ./90_Staging
+obsidian-librarian review-quality ./90_Staging
+```
+
+Output goes under `90_Staging/`. The command preserves raw source paths and
+writes a `review_report.md`.
+
+### 3. Search Vault, Staging, and Ingestion Notes
+
+Available scopes:
+
+| Scope | Includes |
+|---|---|
+| `vault` | Trusted vault notes only. |
+| `staging` | `90_Staging/` only. |
+| `ingestion` | `91_Ingestion/` only. |
+| `vault-and-staging` | Trusted vault plus staging. |
+| `vault-and-ingestion` | Trusted vault plus ingestion. |
+| `staging-and-ingestion` | Both review zones. |
+| `all` | Trusted vault, staging, and ingestion. |
+
+```powershell
+obsidian-librarian index --vault . --scope all
+obsidian-librarian search "buck converter" --vault . --scope ingestion
+```
+
+### 4. Convert PDFs Through the Librarian Inbox Path
+
+Classify PDFs without conversion:
+
+```powershell
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf
 ```
 
-Docling conversion is also explicit:
+Use local Docling conversion:
 
-```bash
+```powershell
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling
 ```
 
-The normal Docling PDF path uses local Docling pipeline models for layout/table extraction and may download or load those non-OCR artifacts on first use, depending on the local cache. RapidOCR/OCR is not requested by this project path: `do_ocr` is forced to `False`, remote services are disabled, and `manifest.extraction.ocr_enabled` remains `false`.
+Enable OCR only when the input is scanned and you accept review-required output:
 
-Scanned-PDF OCR is explicit and review-required:
-
-```bash
+```powershell
 obsidian-librarian ingest ./00_Inbox --vault . --mode draft --include-pdf --pdf-converter docling --pdf-ocr
 ```
 
-OCR output stays under `90_Staging/pdf/<source>/`, preserves source PDFs read-only, records `extraction.method: "ocr"` and `extraction.ocr_enabled: true`, and marks the manifest `needs_review`. OCR output must be checked against the source PDF before promotion.
+Normal Docling conversion forces OCR off. OCR output is marked
+`needs_review`.
 
-For a detailed usage flow and PVplant-combo suggestions, see `docs/13_usage_manual.md`.
+### 5. Use Patron for Engineering PDFs
 
-## Local checks
+The Patron workflow is intentionally review-heavy:
 
-```bash
-python -m pytest
-python -m ruff check .
-python -m obsidian_librarian.cli --help
-python evals/run_evals.py
+```powershell
+obsidian-patron ingest ./Buck_Converter_Handbook.pdf --vault .
+obsidian-patron propose buck-converter-handbook --vault .
+obsidian-patron link buck-converter-handbook --vault .
+obsidian-patron unmatched buck-converter-handbook --vault .
+obsidian-patron status buck-converter-handbook --vault .
 ```
 
-## Documentation map
+What gets created under `91_Ingestion/<slug>/`:
+
+| File | Purpose |
+|---|---|
+| `_ingest_manifest.json` | Source hash, provenance, Docling version, run metadata. |
+| `00_metadata.md` | Human-readable metadata note. |
+| `index.md` | Section table of contents. |
+| `01_*.md`, `02_*.md`, ... | Section notes. |
+| `_proposal.md` | Deterministic classification/tag proposal and optional LLM proposal text. |
+| `_unmatched_candidates.md` | Candidate note queue with frequency, source sections, and context. |
+| `_promotion.json` | Created after promotion so `unpromote` can restore the prior location. |
+
+Useful proposal options:
+
+```powershell
+obsidian-patron propose buck-converter-handbook --vault . --allow-new-tags
+obsidian-patron propose buck-converter-handbook --vault . --llm
+obsidian-patron propose buck-converter-handbook --vault . --llm --model gpt-5.4-mini
+```
+
+LLM text is proposal-only. It is not inserted into ingested notes.
+
+### 6. Promote Reviewed Patron Output
+
+Promote to staging:
+
+```powershell
+obsidian-patron promote buck-converter-handbook --vault . --to-staging
+```
+
+Promote to a trusted hub:
+
+```powershell
+obsidian-patron promote buck-converter-handbook --vault . --to-trusted --hub 20_Power-Electronics
+```
+
+If the deterministic proposal disagrees with the hub, promotion fails unless
+you pass `--override`.
+
+```powershell
+obsidian-patron promote buck-converter-handbook --vault . --to-trusted --hub 20_Power-Electronics --override
+```
+
+## Optional LLM Enrichment
+
+Deterministic behavior is the default. OpenAI enrichment is opt-in.
+
+For staged Markdown notes:
+
+```powershell
+obsidian-librarian enrich ./90_Staging --extractor mock --mode read-only
+obsidian-librarian enrich ./90_Staging --extractor openai --model gpt-5.4-mini --mode draft
+```
+
+For Patron proposals:
+
+```powershell
+obsidian-patron propose manual --vault . --llm
+```
+
+Set the API key before using OpenAI-backed commands:
+
+```powershell
+$env:OPENAI_API_KEY = "your_api_key_here"
+```
+
+If the SDK, key, or API call is unavailable, Patron still exits successfully
+with the deterministic proposal and a warning.
+
+## Development Checks
+
+Run these before claiming a change is complete:
+
+```powershell
+py -3.14 -m pytest
+py -3.14 -m ruff check .
+py -3.14 -m obsidian_librarian.cli --help
+py -3.14 -m obsidian_patron.cli --help
+py -3.14 evals/run_evals.py
+git diff --check
+```
+
+When running directly from an uninstalled checkout, set `PYTHONPATH=src` for
+module help checks:
+
+```powershell
+$env:PYTHONPATH = "src"
+py -3.14 -m obsidian_librarian.cli --help
+py -3.14 -m obsidian_patron.cli --help
+```
+
+If Windows blocks the default pytest temp path, create a repo-local temp folder:
+
+```powershell
+New-Item -ItemType Directory -Force .tmp | Out-Null
+py -3.14 -m pytest --basetemp .tmp\pytest-local
+```
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `ImportError` from `datetime.UTC` | Bare `python` is older than Python 3.10. | Use `py -3.14` or install with a Python 3.10+ interpreter. |
+| `No module named obsidian_librarian` from checkout | Package is not installed and `src/` is not on `PYTHONPATH`. | Run `py -3.14 -m pip install -e ".[dev]"` or set `PYTHONPATH=src`. |
+| `--pdf-converter docling` fails | PDF extra is missing. | Run `py -3.14 -m pip install -e ".[dev,pdf]"`. |
+| OCR did not run | OCR is never automatic. | Add `--pdf-ocr` with `--include-pdf --pdf-converter docling`. |
+| OpenAI enrichment fails | Missing SDK, API key, or API response issue. | Install `[llm]`, set `OPENAI_API_KEY`, or use deterministic mock/proposal-only mode. |
+| Promotion fails due hub mismatch | Proposal and requested trusted hub disagree. | Review `_proposal.md`; use `--override` only when the human decision is intentional. |
+
+## Documentation Map
 
 | Area | File |
 |---|---|
@@ -189,63 +381,45 @@ python evals/run_evals.py
 | Implementation planning | `docs/10_implementation_plan.md` |
 | PDF compatibility planning | `docs/11_pdf_compatibility_plan.md` |
 | Usage manual / quick start | `docs/13_usage_manual.md` |
+| Phase 11 Patron roadmap | `docs/14_phase_11_obsidian_patron_roadmap.md` |
 | Development stack | `docs/20_dev_stack.md` |
 | Agent definition | `docs/30_agent_definition.md` |
 | Tool contracts | `docs/31_tool_contracts.md` |
 | Note schemas | `docs/32_note_schemas.md` |
 | Codex workflow | `docs/40_codex_workflow.md` |
-| Codex task prompts | `docs/41_codex_prompts.md` |
-| Codex skills | `docs/42_codex_skills.md` |
 | Eval and safety strategy | `docs/50_eval_strategy.md` |
 | Reference map | `docs/60_reference_map.md` |
-| Second Brain reference intake | `docs/70_second_brain_reference.md` |
 | Visual map | `docs/80_visual_map.md` |
 
-## Core development rule
+## Development Rule
 
 Build small, safe, and reviewable:
 
-1. deterministic CLI first;
-2. staging-only writes;
+1. deterministic CLI behavior first;
+2. staging-only writes unless promotion is explicit;
 3. tests before expansion;
-4. LLM extraction only after the deterministic core is safe;
-5. PDF compatibility only after an explicit classifier/manifest contract is approved;
-6. Agents SDK integration last.
+4. optional LLM behavior behind flags;
+5. PDF/OCR paths behind explicit flags;
+6. no autonomous trusted-vault mutation.
 
-## Next step
+## Project Status
 
-Phase 11 Obsidian Patron is implemented for deterministic engineering-PDF intake, proposal generation, match-only linking, unmatched reporting, and explicit promotion. Embeddings/RAG and Phase 12 engineering-augmented extraction remain deferred until deterministic PDF intake and OCR review workflows stay stable on real fixtures.
+Implemented and locally covered:
 
+- deterministic Markdown/TXT inbox ingest;
+- staged note validation and deterministic note-quality review;
+- deterministic eval runner;
+- optional staged LLM enrichment;
+- shared vault inventory, index, and search scopes;
+- explicit PDF classifier/manifest path;
+- optional Docling conversion and explicit OCR path;
+- `obsidian-patron` engineering-PDF ingest, proposal, linking, unmatched report,
+  status, promotion, and unpromotion.
 
-## Optional LLM enrichment (Phase 9)
+Deferred by design:
 
-Deterministic ingest remains unchanged. Enrichment is explicit opt-in:
-
-```bash
-obsidian-librarian enrich ./90_Staging --extractor mock --mode draft
-obsidian-librarian enrich ./90_Staging --extractor openai --model gpt-5.4-mini --mode draft
-```
-
-For OpenAI enrichment, install optional dependency and set API key:
-
-```bash
-pip install -e "[dev,llm]"
-export OPENAI_API_KEY="sk-..."
-```
-
-PowerShell:
-
-```powershell
-setx OPENAI_API_KEY "your_api_key_here"
-```
-
-CI never runs live OpenAI calls; tests and evals use deterministic mock extraction only.
-
-
-## Phase 9 troubleshooting
-
-- Missing `OPENAI_API_KEY`: `--extractor openai` exits with a clear error.
-- Missing OpenAI SDK: install optional dependency via `pip install -e "[dev,llm]"`.
-- Incomplete response (for example `max_output_tokens`): enrich fails safely with reason.
-- Model refusal: enrich fails safely and does not write trusted enriched notes.
-- Invalid structured JSON: payload is rejected by schema validation and enrich fails safely.
+- vector retrieval and embeddings;
+- Agents SDK runtime;
+- autonomous trusted-vault edits;
+- Phase 12 engineering-augmented extraction such as richer equation handling,
+  page-level citations, and schematic-aware figure tagging.

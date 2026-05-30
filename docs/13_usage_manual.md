@@ -108,7 +108,36 @@ obsidian-librarian search "inverter clipping" --vault . --scope vault-and-stagin
 
 Suggestions:
 - Use `--scope staging` while reviewing newly ingested batches.
+- Use `--scope ingestion` when inspecting `91_Ingestion/` PDF intake output.
 - Use `--scope vault-and-staging` for broad lookups.
+- Use `--scope all` only when you explicitly want trusted, staging, and ingestion notes together.
+
+### 6) obsidian-patron PDF intake
+
+Use `obsidian-patron` for write-capable Phase 11 engineering-PDF intake. It writes initial output only under `91_Ingestion/`.
+
+```bash
+obsidian-patron ingest ./manual.pdf --vault .
+obsidian-patron propose manual --vault .
+obsidian-patron propose manual --vault . --allow-new-tags
+obsidian-patron propose manual --vault . --llm
+obsidian-patron link manual --vault .
+obsidian-patron unmatched manual --vault .
+obsidian-patron status manual --vault .
+```
+
+Promotion remains explicit:
+
+```bash
+obsidian-patron promote manual --vault . --to-staging
+obsidian-patron promote manual --vault . --to-trusted --hub 20_Power-Electronics
+obsidian-patron unpromote manual --vault .
+```
+
+Suggestions:
+- Review `_proposal.md` before promotion.
+- Treat `llm_suggested` proposal content as advisory, not vault evidence.
+- Use `unmatched` as a manual note-creation queue; the tool never creates stubs.
 
 ## Suggested workflow with a PVplant repository
 
@@ -138,7 +167,7 @@ Practical suggestions for PVplant combo usage:
 
 - `Error: ... not found` → verify input path exists.
 - No Markdown files found in quality review → confirm staged files end in `.md`.
-- Unexpected empty search results → broaden scope to `vault-and-staging` and simplify query terms.
+- Unexpected empty search results → broaden scope to `vault-and-staging` or `all` and simplify query terms.
 
 ## Safe operating checklist
 

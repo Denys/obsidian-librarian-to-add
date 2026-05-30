@@ -36,3 +36,17 @@ def test_patron_ingest_force_archives_previous(tmp_path: Path, monkeypatch) -> N
     assert (vault / "91_Ingestion" / "_archive" / "source").exists()
     manifest = json.loads((out_dir / "_ingest_manifest.json").read_text(encoding="utf-8"))
     assert manifest["document_type"] == "pdf"
+
+
+def test_patron_unmatched_and_status_commands(tmp_path: Path, capsys) -> None:
+    vault = tmp_path / "vault"
+    slug = vault / "91_Ingestion" / "book"
+    slug.mkdir(parents=True)
+    (slug / "_unmatched_candidates.md").write_text("# Candidate notes\n", encoding="utf-8")
+    (slug / "_ingest_manifest.json").write_text("{}\n", encoding="utf-8")
+
+    assert main(["unmatched", "book", "--vault", str(vault)]) == 0
+    assert "Candidate notes" in capsys.readouterr().out
+
+    assert main(["status", "book", "--vault", str(vault)]) == 0
+    assert "91_Ingestion" in capsys.readouterr().out

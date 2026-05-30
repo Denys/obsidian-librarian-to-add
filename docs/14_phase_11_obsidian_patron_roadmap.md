@@ -8,9 +8,9 @@ The two binaries share a deterministic inventory layer but operate under differe
 
 This roadmap is design-only. Implementation begins after Phase 10.1–10.4 ship.
 
-## Implementation status (as of 2026-05-28)
+## Implementation status (as of 2026-05-30)
 
-This section tracks the roadmap against the code on `claude/awesome-brown-It3Kk`.
+This section tracks the roadmap against the code on `codex/finish-phase-11-obsidian-patron`.
 It is the live status ledger; the per-phase design below remains the contract.
 
 Legend: ✅ done · 🟡 partial · ⬜ not started.
@@ -18,32 +18,29 @@ Legend: ✅ done · 🟡 partial · ⬜ not started.
 | Phase | Status | Notes |
 |---|---|---|
 | 11.0 — design + safety contract | ✅ | Roadmap + write-safety taxonomy documented. |
-| 11.1 — docling pipe | 🟡 | Ingests to `91_Ingestion/<slug>/`, atomic temp-dir + move, manifest with source hash/run-id, `--force` archives prior, figures extracted. **Gap:** no section splitting — whole document lands in a single `01_full-document.md`; no per-chapter notes, no glossary/index split, `tables/` dir created but unused. |
-| 11.2 — write contract + guards | 🟡 | `ensure_under` guard, atomic writes, mid-run-failure tests pass. **Gaps:** uses `section:` rather than the contracted `source_section:` key; `index.md` lacks `source_pdf`; no guard rejecting wikilinks pointing into trusted hubs. |
-| 11.3 — deterministic classify + tag | 🟡 | Rule-based hub scoring + `unclassified` handling + `_proposal.md`. **Gaps:** classifier reads only `index.md` (the title heading) — it never sees the document body, so classification/tagging is effectively title-only; hub keywords hardcoded in Python instead of `config/hubs.yaml`; no filename-regex or PDF-metadata rules; tags limited to a 6-word whitelist; no existing-vault tag matching / `--allow-new-tags`; no confidence threshold. |
-| 11.4 — optional LLM enrichment | ⬜ | Not implemented. `propose` has no `--llm` flag. Acknowledged as last/non-gating. |
-| 11.5 — match-only wikilinks | 🟡 | `link` inserts exact/alias/heading matches, writes `_unmatched_candidates.md`, skips frontmatter + fenced code. **Gaps:** no explicit "stub note creation never occurs" regression test (a stated done-criterion); matching against *every* heading in the vault risks spurious links from generic headings ("Introduction", "Overview"); `unmatched` standalone command not implemented. |
+| 11.1 — docling pipe | ✅ | Ingests to `91_Ingestion/<slug>/`, atomic temp-dir + move, manifest with source hash/run-id, `--force` archives prior, section notes, TOC links, glossary/index hints, tables sidecar, and extracted figures. |
+| 11.2 — write contract + guards | ✅ | `ensure_under` guard, atomic writes, mid-run-failure tests, `source_section`, `source_pdf`, local TOC-link allowance, and trusted-link rejection are enforced. |
+| 11.3 — deterministic classify + tag | ✅ | Config-backed hub scoring in `src/obsidian_patron/config/hubs.yaml`, filename/body/metadata scoring, confidence threshold/tie handling, existing-vault tag matching, and `--allow-new-tags` are implemented. |
+| 11.4 — optional LLM enrichment | ✅ | `propose --llm [--model]` adds proposal-only enrichment when available and degrades to deterministic proposal plus warning when unavailable. |
+| 11.5 — match-only wikilinks | ✅ | `link` uses shared inventory matches, unique non-generic heading matches, candidate extraction from headings/bold/glossary/repeated phrases, richer unmatched reports, explicit no-stub regression, and `unmatched` command. |
 | 11.6 — promotion | ✅ (exceeds spec) | `promote --to-staging` / `--to-trusted --hub` / `unpromote`, proposal-gate with `--override`, frontmatter rewrite + restore. Persisted `_promotion.json` ledger makes unpromote work **cross-session**, not just in-session. |
 
-### Cross-cutting gaps (block "Phase 11 complete")
+### Cross-cutting status
 
-1. **Duplicate scanners — violates the core invariant.** The roadmap mandates one shared `obsidian_inventory` module and "no duplicate scanners". In practice `linker.py` and `promotion.py` each re-implement vault traversal and frontmatter parsing; patron reuses only `convert_pdf_with_docling` from the librarian. Extract a shared scanner/frontmatter module and have both binaries consume it.
-2. **Librarian cannot read the ingestion zone.** Roadmap 10.2 requires `--scope ingestion`; the librarian still only offers `vault` / `staging` / `vault-and-staging`. The premise that ingested notes are searchable (scope: ingestion, hidden by default) is unmet.
-3. **IndexRecord schema not extended.** The 10.1 additions (`source_pdf`, `ingest_run_id`, `promoted_from`, `promoted_at`, `aliases`) are absent from `IndexRecord`, so provenance never reaches the index.
-4. **CLI surface incomplete.** `unmatched` and `status` (both in the provisional CLI list) are not implemented.
+1. **Shared inventory invariant met.** `src/obsidian_inventory/` owns deterministic scanning, frontmatter, aliases, heading extraction, wikilink normalization, scope detection, and `IndexRecord`; `obsidian_librarian.indexer` remains a compatibility export.
+2. **Ingestion search scope implemented.** Librarian supports `ingestion`, `vault-and-ingestion`, `staging-and-ingestion`, and `all` in addition to the original scopes.
+3. **IndexRecord schema extended.** Ingest provenance, source PDF/section, promotion fields, and aliases are indexed.
+4. **CLI surface complete for Phase 11.** `ingest`, `propose`, `link`, `unmatched`, `promote`, `unpromote`, and `status` exist.
 
 ### Quality of what exists
 
-Solid: atomic-write semantics, the `ensure_under` containment guard, deterministic output (`sort_keys`, sorted iteration), Docling hardening (remote services / formula / picture-description disabled, OCR off by default), and focused tests (152 passing, 2 skipped only because `docling` is absent in CI). The implemented slices are clean and well-tested **for the paths they cover** — the risk is narrow coverage (single-section ingest, title-only classification), not buggy code.
+Solid: atomic-write semantics, the `ensure_under` containment guard, deterministic output (`sort_keys`, sorted iteration), Docling hardening (remote services / formula / picture-description disabled, OCR off by default), shared inventory reuse, conservative match-only linking, and focused tests.
 
 ### Recommended next actions (in order)
 
-1. Add `--scope ingestion` to the librarian + extend `IndexRecord` (small, unblocks the search premise).
-2. Make the classifier read section-note bodies, not just `index.md`; move hub keywords to `config/hubs.yaml`.
-3. Section-split the docling output in 11.1 (this is the highest-value extraction gap).
-4. Extract the shared scanner to kill the duplicate-traversal divergence.
-5. Add the explicit no-stub regression test for 11.5; restrict heading-based matching to reduce spurious links.
-6. Then implement 11.4 (LLM enrichment) last, as planned.
+1. Run real ingest on 3-5 personal engineering PDFs and record extraction pain points.
+2. Keep Phase 12 limited to observed v1 friction: equation OCR, page-level citations, schematic tagging, and datasheet table cleanup.
+3. Avoid Agents SDK/vector work until deterministic Phase 11 behavior remains stable on real vault use.
 
 ## Decisions resolved (from clarification round)
 

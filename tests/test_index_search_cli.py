@@ -22,6 +22,15 @@ def test_cli_index_and_search(tmp_path: Path, capsys: pytest.CaptureFixture[str]
     assert search_code == 0
     assert "Matched files" in search_out
 
+    ingestion = tmp_path / "91_Ingestion" / "book" / "chapter.md"
+    ingestion.parent.mkdir(parents=True)
+    ingestion.write_text("# Buck Converter", encoding="utf-8")
+
+    ingestion_code = main(["search", "buck", "--vault", str(tmp_path), "--scope", "ingestion"])
+    ingestion_out = capsys.readouterr().out
+    assert ingestion_code == 0
+    assert "91_Ingestion/book/chapter.md" in ingestion_out
+
 
 def test_cli_invalid_scope_error() -> None:
     with pytest.raises(SystemExit):

@@ -1,0 +1,59 @@
+threshold: 2
+hubs:
+  10_DSP-Eurorack:
+    filename_regexes:
+      - "(?i)(dsp|audio|filter|oscillator|reverb|eurorack)"
+    keywords:
+      - dsp
+      - filter
+      - oscillator
+      - audio
+      - reverb
+      - delay
+    metadata_keywords:
+      - signal processing
+      - audio
+    default_tags:
+      - dsp
+      - audio
+      - filter
+      - reverb
+  20_Power-Electronics:
+    filename_regexes:
+      - "(?i)(power|converter|buck|boost|inverter|voltage|current)"
+    keywords:
+      - power
+      - converter
+      - buck
+      - boost
+      - voltage
+      - current
+      - inverter
+      - switching
+    metadata_keywords:
+      - power electronics
+      - photovoltaic
+      - pv
+      - inverter
+    default_tags:
+      - power
+      - converter
+      - buck
+      - boost
+      - inverter
+  30_EMC:
+    filename_regexes:
+      - "(?i)(emc|emi|noise|shield|compliance)"
+    keywords:
+      - emc
+      - emi
+      - noise
+      - shielding
+      - compliance
+    metadata_keywords:
+      - electromagnetic compatibility
+      - emissions
+    default_tags:
+      - emc
+      - emi
+      - noise

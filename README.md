@@ -56,6 +56,14 @@ obsidian-librarian review-quality ./90_Staging
 obsidian-librarian enrich ./90_Staging --extractor mock --mode read-only
 obsidian-librarian index --vault . --scope vault-and-staging
 obsidian-librarian search "daisy reverb" --vault . --scope vault-and-staging
+obsidian-librarian search "buck converter" --vault . --scope ingestion
+obsidian-patron ingest ./manual.pdf --vault .
+obsidian-patron propose manual --vault . [--allow-new-tags] [--llm]
+obsidian-patron link manual --vault .
+obsidian-patron unmatched manual --vault .
+obsidian-patron status manual --vault .
+obsidian-patron promote manual --vault . --to-staging
+obsidian-patron promote manual --vault . --to-trusted --hub 20_Power-Electronics
 python evals/run_evals.py
 ```
 
@@ -127,6 +135,18 @@ obsidian-librarian index --vault . --scope vault-and-staging
 obsidian-librarian search "your topic" --vault . --scope vault-and-staging
 ```
 
+Phase 11 Patron PDF intake is separate from the read-only librarian surface:
+
+```bash
+obsidian-patron ingest ./manual.pdf --vault .
+obsidian-patron propose manual --vault .
+obsidian-patron link manual --vault .
+obsidian-patron unmatched manual --vault .
+obsidian-patron promote manual --vault . --to-staging
+```
+
+`obsidian-librarian` can inspect staged PDF intake with `--scope ingestion` without gaining write behavior.
+
 PDF classifier/manifest intake is explicit:
 
 ```bash
@@ -194,7 +214,7 @@ Build small, safe, and reviewable:
 
 ## Next step
 
-Phase 11.6 is implemented as explicit, review-required OCR for scanned PDFs. Embeddings/RAG remain deferred until deterministic PDF intake and OCR review workflows stay stable on real fixtures.
+Phase 11 Obsidian Patron is implemented for deterministic engineering-PDF intake, proposal generation, match-only linking, unmatched reporting, and explicit promotion. Embeddings/RAG and Phase 12 engineering-augmented extraction remain deferred until deterministic PDF intake and OCR review workflows stay stable on real fixtures.
 
 
 ## Optional LLM enrichment (Phase 9)

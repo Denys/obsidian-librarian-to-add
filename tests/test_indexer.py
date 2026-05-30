@@ -54,3 +54,30 @@ def test_index_extracts_fields(tmp_path: Path) -> None:
     assert "abc" in rec.tags
     assert "Wiki" in rec.wikilinks
     assert "src.md" in rec.source_refs
+
+
+def test_set_frontmatter_fields_replaces_adds_and_removes() -> None:
+    from obsidian_inventory import set_frontmatter_fields, split_frontmatter
+
+    original = "---\nstatus: ingested\norigin: book\n---\n# Body\n\nText\n"
+    updated = set_frontmatter_fields(
+        original, {"status": "trusted", "promoted_at": "2026-05-30T00:00:00+00:00"}
+    )
+
+    # untouched field preserved, target replaced, new field appended, body intact
+    assert "origin: book" in updated
+    assert "status: trusted" in updated
+    assert "status: ingested" not in updated
+    assert "promoted_at: 2026-05-30T00:00:00+00:00" in updated
+    assert split_frontmatter(updated)[1] == "# Body\n\nText\n"
+
+    # None removes a key; removing the last field drops the frontmatter block entirely
+    removed = set_frontmatter_fields("---\nstatus: trusted\n---\n# B\n", {"status": None})
+    assert removed == "# B\n"
+
+
+def test_split_frontmatter_handles_missing_block() -> None:
+    from obsidian_inventory import split_frontmatter
+
+    assert split_frontmatter("# No frontmatter\n") == ("", "# No frontmatter\n")
+    assert split_frontmatter("---\nkey: val\n---\nbody\n") == ("key: val", "body\n")

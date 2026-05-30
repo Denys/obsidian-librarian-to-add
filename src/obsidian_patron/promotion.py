@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+from obsidian_inventory import extract_frontmatter, set_frontmatter_fields
 from obsidian_patron.safety import ensure_under
 
 PromotionTarget = Literal["staging", "trusted"]
@@ -152,13 +153,14 @@ def _rewrite_trusted_frontmatter(
     previous: dict[str, dict[str, str | None]] = {}
     for path in _normal_markdown_files(destination):
         text = path.read_text(encoding="utf-8")
+        fields = extract_frontmatter(text)
         previous[path.relative_to(destination).as_posix()] = {
-            "status": _frontmatter_value(text, "status"),
-            "promoted_from": _frontmatter_value(text, "promoted_from"),
-            "promoted_at": _frontmatter_value(text, "promoted_at"),
-            "trusted_hub": _frontmatter_value(text, "trusted_hub"),
+            "status": fields.get("status"),
+            "promoted_from": fields.get("promoted_from"),
+            "promoted_at": fields.get("promoted_at"),
+            "trusted_hub": fields.get("trusted_hub"),
         }
-        updated = _set_frontmatter_fields(
+        updated = set_frontmatter_fields(
             text,
             {
                 "status": "trusted",
@@ -179,46 +181,11 @@ def _restore_frontmatter(
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8")
-        path.write_text(_set_frontmatter_fields(text, fields), encoding="utf-8")
+        path.write_text(set_frontmatter_fields(text, fields), encoding="utf-8")
 
 
 def _normal_markdown_files(root: Path) -> tuple[Path, ...]:
     return tuple(sorted(path for path in root.rglob("*.md") if not path.name.startswith("_")))
-
-
-def _frontmatter_value(text: str, key: str) -> str | None:
-    frontmatter = _frontmatter(text)
-    match = re.search(rf"^{re.escape(key)}:\s*(.*?)\s*$", frontmatter, re.MULTILINE)
-    if not match:
-        return None
-    return match.group(1).strip().strip("\"'")
-
-
-def _set_frontmatter_fields(text: str, fields: dict[str, str | None]) -> str:
-    frontmatter, body = _split_frontmatter(text)
-    lines = frontmatter.splitlines() if frontmatter else []
-    for key, value in fields.items():
-        lines = [line for line in lines if not re.match(rf"^{re.escape(key)}:\s*", line)]
-        if value is not None:
-            lines.append(f"{key}: {value}")
-    rendered = "\n".join(lines).strip()
-    if rendered:
-        return f"---\n{rendered}\n---\n{body.lstrip(chr(10))}"
-    return body.lstrip("\n")
-
-
-def _split_frontmatter(text: str) -> tuple[str, str]:
-    if not text.startswith("---\n"):
-        return "", text
-    rest = text.removeprefix("---\n")
-    frontmatter, sep, body = rest.partition("\n---\n")
-    if not sep:
-        return "", text
-    return frontmatter, body
-
-
-def _frontmatter(text: str) -> str:
-    return _split_frontmatter(text)[0]
 
 
 def _write_ledger(*, destination: Path, payload: dict[str, Any]) -> Path:

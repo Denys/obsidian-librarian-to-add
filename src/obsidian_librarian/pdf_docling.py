@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from importlib import import_module, metadata
 from io import BytesIO
@@ -19,6 +20,18 @@ class PdfDependencyError(PdfConversionError):
 
 
 @dataclass(frozen=True)
+class DoclingSection:
+    """One logical document section preserved from Docling or Markdown structure."""
+
+    title: str
+    markdown: str
+    heading_path: str | None = None
+    level: int = 1
+    children: tuple[DoclingSection, ...] = ()
+    kind: str | None = None
+
+
+@dataclass(frozen=True)
 class DoclingAsset:
     """One staged binary/text asset exported by a PDF converter."""
 
@@ -27,16 +40,6 @@ class DoclingAsset:
     kind: str | None = None
     page_number: int | None = None
     caption: str | None = None
-
-
-@dataclass(frozen=True)
-class DoclingSection:
-    """One semantic Markdown section produced by a PDF converter."""
-
-    title: str
-    markdown: str
-    heading_path: str
-    kind: str | None = None
 
 
 @dataclass(frozen=True)
@@ -50,6 +53,7 @@ class DoclingConversionResult:
     assets: tuple[DoclingAsset, ...] = ()
     sections: tuple[DoclingSection, ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)
+    tables: tuple[dict[str, Any], ...] = ()
     code_blocks: tuple[str, ...] = ()
     figure_captions: tuple[str, ...] = ()
     glossary_index_hints: tuple[str, ...] = ()
@@ -99,8 +103,14 @@ def _convert_pdf_with_docling_converter(
         markdown = document.export_to_markdown()
         structured_payload = _export_docling_payload(document)
         structured = _json_dumps(structured_payload)
-        tables_json = _export_docling_tables_json(structured_payload)
+        tables = tuple(_collect_table_like_payloads(structured_payload))
+        tables_json = _export_docling_tables_json_from_tables(list(tables))
         assets = _extract_docling_assets(document)
+        sections = _extract_docling_sections(markdown, structured_payload)
+        metadata_payload = _extract_docling_metadata(document, structured_payload)
+        code_blocks = _extract_docling_code_blocks(markdown, structured_payload)
+        figure_captions = _extract_docling_figure_captions(assets, structured_payload)
+        glossary_index_hints = _extract_glossary_index_hints(sections, structured_payload)
     except Exception as exc:
         raise PdfConversionError(f"Docling conversion failed for {pdf_path}: {exc}") from exc
 
@@ -113,6 +123,12 @@ def _convert_pdf_with_docling_converter(
         engine_version=_docling_version(),
         tables_json=tables_json,
         assets=assets,
+        sections=sections,
+        metadata=metadata_payload,
+        tables=tables,
+        code_blocks=code_blocks,
+        figure_captions=figure_captions,
+        glossary_index_hints=glossary_index_hints,
     )
 
 
@@ -227,7 +243,9 @@ def _safe_asset_name(candidate: Any, index: int) -> Path:
 
 
 def _asset_kind(candidate: Any) -> str:
-    label = str(getattr(candidate, "kind", None) or getattr(candidate, "label", None) or "").lower()
+    label = str(
+        getattr(candidate, "kind", None) or getattr(candidate, "label", None) or ""
+    ).lower()
     if "figure" in label or "picture" in label:
         return "figure"
     if "image" in label:
@@ -427,7 +445,10 @@ def _export_docling_tables_json(payload: Any) -> str | None:
     It records table-like payloads found in Docling's structured export so later
     phases can add quality gates without flattening tables into prose.
     """
-    tables = _collect_table_like_payloads(payload)
+    return _export_docling_tables_json_from_tables(_collect_table_like_payloads(payload))
+
+
+def _export_docling_tables_json_from_tables(tables: list[dict[str, Any]]) -> str | None:
     if not tables:
         return None
     return _json_dumps(
@@ -452,6 +473,203 @@ def _collect_table_like_payloads(payload: Any, path: str = "$") -> list[dict[str
         for index, value in enumerate(payload):
             tables.extend(_collect_table_like_payloads(value, f"{path}[{index}]"))
     return tables
+
+
+def _extract_docling_metadata(document: Any, payload: Any) -> dict[str, Any]:
+    metadata_payload: dict[str, Any] = {}
+    for key in ("metadata", "meta", "origin", "document", "properties"):
+        value = getattr(document, key, None)
+        if isinstance(value, dict):
+            metadata_payload.update(value)
+        elif value is not None and not callable(value):
+            dumped = _object_to_public_dict(value)
+            if dumped:
+                metadata_payload.update(dumped)
+
+    if isinstance(payload, dict):
+        for key in ("metadata", "meta", "origin", "properties"):
+            value = payload.get(key)
+            if isinstance(value, dict):
+                metadata_payload.update(value)
+
+    return _select_metadata_fields(metadata_payload)
+
+
+def _object_to_public_dict(value: Any) -> dict[str, Any]:
+    for method_name in ("model_dump", "dict"):
+        method = getattr(value, method_name, None)
+        if callable(method):
+            dumped = method()
+            if isinstance(dumped, dict):
+                return dumped
+    if hasattr(value, "__dict__"):
+        return {k: v for k, v in vars(value).items() if not k.startswith("_")}
+    return {}
+
+
+def _select_metadata_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    wanted = {
+        "author",
+        "authors",
+        "creator",
+        "date",
+        "isbn",
+        "keywords",
+        "producer",
+        "publication_year",
+        "subject",
+        "title",
+        "year",
+    }
+    selected: dict[str, Any] = {}
+    for key, value in payload.items():
+        normalized = str(key).strip().lower().replace(" ", "_").replace("-", "_")
+        if normalized in wanted and value not in (None, "", [], {}):
+            selected[normalized] = value
+    return selected
+
+
+def _extract_docling_sections(markdown: str, payload: Any) -> tuple[DoclingSection, ...]:
+    structured = _extract_structured_sections(payload)
+    if structured:
+        return structured
+    return _split_markdown_top_level_sections(markdown)
+
+
+def _extract_structured_sections(payload: Any) -> tuple[DoclingSection, ...]:
+    if not isinstance(payload, dict):
+        return ()
+    for key in ("sections", "chapters"):
+        value = payload.get(key)
+        sections = _coerce_sections(value)
+        if sections:
+            return sections
+    body = payload.get("body")
+    if isinstance(body, dict):
+        for key in ("sections", "chapters"):
+            sections = _coerce_sections(body.get(key))
+            if sections:
+                return sections
+    return ()
+
+
+def _coerce_sections(value: Any) -> tuple[DoclingSection, ...]:
+    if not isinstance(value, list):
+        return ()
+    sections: list[DoclingSection] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        title = item.get("title") or item.get("heading") or item.get("name")
+        text = item.get("markdown") or item.get("text") or item.get("content") or ""
+        if not isinstance(title, str) or not title.strip():
+            continue
+        children = _coerce_sections(item.get("children") or item.get("sections"))
+        level = item.get("level", 1)
+        if not isinstance(level, int):
+            level = 1
+        kind = item.get("kind") if isinstance(item.get("kind"), str) else None
+        heading_path = item.get("heading_path") or item.get("path") or title.strip()
+        if not isinstance(heading_path, str):
+            heading_path = title.strip()
+        markdown = str(text).strip()
+        if not markdown.startswith("#"):
+            markdown = f"{'#' * max(level, 1)} {title.strip()}\n\n{markdown}".strip()
+        sections.append(
+            DoclingSection(
+                title=title.strip(),
+                markdown=markdown + "\n",
+                heading_path=heading_path.strip(),
+                level=max(level, 1),
+                children=children,
+                kind=kind,
+            )
+        )
+    return tuple(sections)
+
+
+def _split_markdown_top_level_sections(markdown: str) -> tuple[DoclingSection, ...]:
+    lines = markdown.strip().splitlines()
+    sections: list[DoclingSection] = []
+    current_title: str | None = None
+    current_lines: list[str] = []
+
+    for line in lines:
+        match = re.match(r"^(#{1,2})\s+(.+?)\s*$", line)
+        if match and len(match.group(1)) == 1:
+            if current_title is not None:
+                sections.append(
+                    DoclingSection(
+                        title=current_title,
+                        markdown="\n".join(current_lines).strip() + "\n",
+                    )
+                )
+            current_title = match.group(2).strip()
+            current_lines = [line]
+        else:
+            if current_title is None:
+                current_title = "Document"
+                current_lines = ["# Document", ""]
+            current_lines.append(line)
+
+    if current_title is not None:
+        sections.append(
+            DoclingSection(
+                title=current_title,
+                markdown="\n".join(current_lines).strip() + "\n",
+            )
+        )
+    return tuple(sections)
+
+
+def _extract_docling_code_blocks(markdown: str, payload: Any) -> tuple[str, ...]:
+    blocks = [
+        match.group(1).strip()
+        for match in re.finditer(r"```(?:[^\n]*)\n(.*?)```", markdown, re.DOTALL)
+    ]
+    blocks.extend(_collect_string_values_by_key(payload, {"code", "code_text", "program"}))
+    return tuple(dict.fromkeys(block for block in blocks if block))
+
+
+def _extract_docling_figure_captions(
+    assets: tuple[DoclingAsset, ...], payload: Any
+) -> tuple[str, ...]:
+    captions = [
+        asset.caption.strip()
+        for asset in assets
+        if asset.caption and asset.caption.strip()
+    ]
+    captions.extend(_collect_string_values_by_key(payload, {"caption", "caption_text"}))
+    return tuple(dict.fromkeys(caption for caption in captions if caption))
+
+
+def _extract_glossary_index_hints(
+    sections: tuple[DoclingSection, ...], payload: Any
+) -> tuple[str, ...]:
+    hints = [section.title for section in sections if _is_glossary_or_index_title(section.title)]
+    hints.extend(_collect_string_values_by_key(payload, {"glossary", "index"}))
+    return tuple(dict.fromkeys(hint for hint in hints if hint))
+
+
+def _collect_string_values_by_key(payload: Any, wanted: set[str]) -> list[str]:
+    values: list[str] = []
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            if str(key).strip().lower() in wanted:
+                if isinstance(value, str):
+                    values.append(value.strip())
+                elif isinstance(value, list):
+                    values.extend(str(item).strip() for item in value if str(item).strip())
+            values.extend(_collect_string_values_by_key(value, wanted))
+    elif isinstance(payload, list):
+        for item in payload:
+            values.extend(_collect_string_values_by_key(item, wanted))
+    return values
+
+
+def _is_glossary_or_index_title(title: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+    return normalized in {"glossary", "index", "glossary and index", "index and glossary"}
 
 
 def _json_dumps(payload: Any) -> str:

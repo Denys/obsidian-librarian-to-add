@@ -122,49 +122,39 @@ def ingest_pdf_to_ingestion(
 
 
 def _section_notes(conversion: DoclingConversionResult) -> tuple[DoclingSection, ...]:
-    if conversion.sections:
-        return conversion.sections
-    markdown = conversion.markdown.strip()
-    return (
-        DoclingSection(
-            title="Full Document",
-            markdown=markdown,
-            heading_path=_first_heading_path(markdown) or "full-document",
-        ),
-    )
-
-
-def _first_heading_path(markdown: str) -> str | None:
-    match = re.search(r"^#{1,6}\s+(.+?)\s*$", markdown, re.MULTILINE)
-    if not match:
-        return None
-    return slugify(match.group(1))
+    sections = conversion.sections or _split_markdown_top_level_sections(conversion.markdown)
+    if not sections:
+        return (DoclingSection(title="Document", markdown=conversion.markdown.strip() + "\n"),)
+    return sections
 
 
 def _write_section_notes(
     temp_dir: Path,
     sections: tuple[DoclingSection, ...],
     source: Path,
-    slug: str,
+    origin: str,
     run_id: str,
 ) -> list[tuple[str, str]]:
+    used_slugs: set[str] = set()
     written: list[tuple[str, str]] = []
     for index, section in enumerate(sections, start=1):
-        filename = f"{index:02d}_{slugify(section.title)}.md"
-        frontmatter = [
-            "---",
-            "status: ingested",
-            f"origin: {slug}",
-            f"ingest_run_id: {run_id}",
-            f"source_pdf: {source.as_posix()}",
-            f"source_section: {section.heading_path}",
-        ]
-        if section.kind:
-            frontmatter.append(f"section_kind: {section.kind}")
-        frontmatter.append("---")
-        body = section.markdown.strip()
+        section_slug = _unique_slug(slugify(section.title), used_slugs)
+        filename = f"{index:02d}_{section_slug}.md"
+        section_kind = section.kind or (
+            "glossary-index" if _is_glossary_or_index(section.title) else "section"
+        )
+        frontmatter = {
+            "status": "ingested",
+            "origin": origin,
+            "ingest_run_id": run_id,
+            "source_pdf": source.as_posix(),
+            "source_section": _source_section(section, section_slug),
+            "section_title": section.title,
+            "section_kind": section_kind,
+        }
+        body = section.markdown.strip() or f"# {section.title}"
         (temp_dir / filename).write_text(
-            "\n".join(frontmatter) + f"\n\n{body}\n",
+            _frontmatter(frontmatter) + "\n" + body + "\n",
             encoding="utf-8",
         )
         written.append((filename, section.title))
@@ -174,47 +164,53 @@ def _write_section_notes(
 def _write_index_note(
     temp_dir: Path,
     source: Path,
-    slug: str,
+    origin: str,
     run_id: str,
     section_files: list[tuple[str, str]],
 ) -> None:
     lines = [
-        "---",
-        "status: ingested",
-        f"origin: {slug}",
-        f"ingest_run_id: {run_id}",
-        f"source_pdf: {source.as_posix()}",
-        "---",
+        _frontmatter(
+            {
+                "status": "ingested",
+                "origin": origin,
+                "ingest_run_id": run_id,
+                "source_pdf": source.as_posix(),
+            }
+        ),
         "",
         f"# {source.stem}",
         "",
-        "Ingest status: ingested",
+        f"- Source path: `{source.as_posix()}`",
+        "- Ingest status: ingested",
+        f"- Ingest run ID: `{run_id}`",
         "",
-        "## Sections",
+        "## Table of contents",
         "",
     ]
     for filename, title in section_files:
         lines.append(f"- [[{Path(filename).stem}|{title}]]")
-    (temp_dir / "index.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    lines.append("")
+    (temp_dir / "index.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def _write_metadata_note(
     temp_dir: Path,
     source: Path,
-    slug: str,
+    origin: str,
     run_id: str,
     metadata: dict[str, Any],
 ) -> None:
-    lines = [
-        "---",
-        "status: ingested",
-        f"origin: {slug}",
-        f"ingest_run_id: {run_id}",
-        f"source_pdf: {source.as_posix()}",
-    ]
-    for key in sorted(metadata):
-        lines.append(f"{key}: {_yaml_scalar(metadata[key])}")
-    lines.extend(["---", ""])
+    frontmatter = {
+        "status": "ingested",
+        "origin": origin,
+        "ingest_run_id": run_id,
+        "source_pdf": source.as_posix(),
+    }
+    frontmatter.update(_available_metadata_fields(metadata))
+    lines = [_frontmatter(frontmatter), "", "# Metadata", ""]
+    for key, value in _available_metadata_fields(metadata).items():
+        lines.append(f"- {key}: {_metadata_inline(value)}")
+    lines.append("")
     (temp_dir / "00_metadata.md").write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -224,31 +220,128 @@ def _write_table_sidecars(temp_dir: Path, conversion: DoclingConversionResult) -
 
 
 def _write_assets(temp_dir: Path, conversion: DoclingConversionResult) -> list[str]:
-    attachment_files: list[str] = []
-    for idx, asset in enumerate(conversion.assets, start=1):
-        target_name = _asset_target_name(asset.relative_path, asset.caption, idx)
-        relative = f"attachments/{target_name}"
-        (temp_dir / relative).write_bytes(asset.content)
-        attachment_files.append(relative)
-    return attachment_files
+    written: list[str] = []
+    for index, asset in enumerate(conversion.assets, start=1):
+        target_name = _figure_filename(index, asset.relative_path, asset.caption)
+        target = temp_dir / "attachments" / target_name
+        target.write_bytes(asset.content)
+        written.append(f"attachments/{target_name}")
+    return written
 
 
-def _asset_target_name(relative_path: Path, caption: str | None, index: int) -> str:
-    path = Path(relative_path)
-    suffix = path.suffix or ".bin"
-    basename = slugify(caption or path.stem)
-    return f"fig_{index:04d}_{basename}{suffix}"
+def _figure_filename(index: int, relative_path: Path, caption: str | None) -> str:
+    suffix = Path(relative_path).suffix.lower() or ".png"
+    if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}:
+        suffix = ".png"
+    stem_source = caption if caption and caption.strip() else Path(relative_path).stem
+    return f"fig_{index:04d}_{slugify(stem_source)}{suffix}"
+
+
+def _available_metadata_fields(metadata: dict[str, Any]) -> dict[str, Any]:
+    wanted = (
+        "title",
+        "authors",
+        "author",
+        "year",
+        "publication_year",
+        "isbn",
+        "subject",
+        "keywords",
+    )
+    return {
+        key: metadata[key]
+        for key in wanted
+        if key in metadata and metadata[key] not in (None, "")
+    }
+
+
+def _source_section(section: DoclingSection, section_slug: str) -> str:
+    heading_path = getattr(section, "heading_path", None)
+    if isinstance(heading_path, str) and heading_path.strip():
+        return heading_path.strip()
+    return section_slug
+
+
+def _frontmatter(values: dict[str, Any]) -> str:
+    lines = ["---"]
+    for key, value in values.items():
+        lines.append(f"{key}: {_yaml_value(value)}")
+    lines.append("---")
+    return "\n".join(lines)
+
+
+def _yaml_value(value: Any) -> str:
+    if isinstance(value, list | tuple):
+        return "[" + ", ".join(_yaml_scalar(item) for item in value) + "]"
+    return _yaml_scalar(value)
 
 
 def _yaml_scalar(value: Any) -> str:
-    if isinstance(value, str):
-        return json.dumps(value)
-    if isinstance(value, list):
-        return "[" + ", ".join(str(item) for item in value) + "]"
+    text = str(value)
+    if re.fullmatch(r"[A-Za-z0-9_./:+-]+", text):
+        return text
+    return json.dumps(text)
+
+
+def _metadata_inline(value: Any) -> str:
+    if isinstance(value, list | tuple):
+        return ", ".join(str(item) for item in value)
     return str(value)
 
 
+def _unique_slug(candidate: str, used: set[str]) -> str:
+    base = candidate or "section"
+    current = base
+    suffix = 2
+    while current in used:
+        current = f"{base}-{suffix}"
+        suffix += 1
+    used.add(current)
+    return current
+
+
+def _split_markdown_top_level_sections(markdown: str) -> tuple[DoclingSection, ...]:
+    lines = markdown.strip().splitlines()
+    sections: list[DoclingSection] = []
+    current_title: str | None = None
+    current_lines: list[str] = []
+
+    for line in lines:
+        match = re.match(r"^#\s+(.+?)\s*$", line)
+        if match:
+            if current_title is not None:
+                sections.append(
+                    DoclingSection(
+                        title=current_title,
+                        markdown="\n".join(current_lines).strip() + "\n",
+                    )
+                )
+            current_title = match.group(1).strip()
+            current_lines = [line]
+        else:
+            if current_title is None:
+                current_title = "Document"
+                current_lines = ["# Document", ""]
+            current_lines.append(line)
+
+    if current_title is not None:
+        sections.append(
+            DoclingSection(
+                title=current_title,
+                markdown="\n".join(current_lines).strip() + "\n",
+            )
+        )
+    return tuple(sections)
+
+
+def _is_glossary_or_index(title: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+    return normalized in {"glossary", "index", "glossary and index", "index and glossary"}
+
+
 def _count_conversion_tables(conversion: DoclingConversionResult) -> int:
+    if conversion.tables:
+        return len(conversion.tables)
     return _count_tables(conversion.tables_json)
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import import_module, metadata
 from io import BytesIO
 from pathlib import Path
@@ -30,6 +30,16 @@ class DoclingAsset:
 
 
 @dataclass(frozen=True)
+class DoclingSection:
+    """One semantic Markdown section produced by a PDF converter."""
+
+    title: str
+    markdown: str
+    heading_path: str
+    kind: str | None = None
+
+
+@dataclass(frozen=True)
 class DoclingConversionResult:
     """Docling conversion output needed by the staging writer."""
 
@@ -38,6 +48,11 @@ class DoclingConversionResult:
     engine_version: str
     tables_json: str | None = None
     assets: tuple[DoclingAsset, ...] = ()
+    sections: tuple[DoclingSection, ...] = ()
+    metadata: dict[str, Any] = field(default_factory=dict)
+    code_blocks: tuple[str, ...] = ()
+    figure_captions: tuple[str, ...] = ()
+    glossary_index_hints: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -212,9 +227,7 @@ def _safe_asset_name(candidate: Any, index: int) -> Path:
 
 
 def _asset_kind(candidate: Any) -> str:
-    label = str(
-        getattr(candidate, "kind", None) or getattr(candidate, "label", None) or ""
-    ).lower()
+    label = str(getattr(candidate, "kind", None) or getattr(candidate, "label", None) or "").lower()
     if "figure" in label or "picture" in label:
         return "figure"
     if "image" in label:

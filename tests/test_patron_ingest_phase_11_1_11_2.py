@@ -244,8 +244,12 @@ def test_ingest_pdf_writes_multi_section_notes_and_toc_links(tmp_path: Path, mon
     assert (out / "03_glossary.md").exists()
 
     index_text = (out / "index.md").read_text(encoding="utf-8")
+    metadata_text = (out / "00_metadata.md").read_text(encoding="utf-8")
+    resolved_pdf = pdf.resolve(strict=False).as_posix()
     assert "# analog handbook" in index_text
     assert "Ingest status: ingested" in index_text
+    assert f'source_pdf: "{resolved_pdf}"' in index_text
+    assert f'source_pdf: "{resolved_pdf}"' in metadata_text
     assert "[[01_chapter-1-foundations|Chapter 1: Foundations]]" in index_text
     assert "[[02_power-tables|Power Tables]]" in index_text
     assert "[[03_glossary|Glossary]]" in index_text
@@ -259,6 +263,10 @@ def test_ingest_pdf_writes_multi_section_notes_and_toc_links(tmp_path: Path, mon
         "01_chapter-1-foundations.md",
         "02_power-tables.md",
         "03_glossary.md",
+    ]
+    assert manifest["outputs"]["attachments"] == [
+        "attachments/fig_0001_figure-1-converter-topology.png",
+        "attachments/fig_0002_raw-image.png",
     ]
 
 

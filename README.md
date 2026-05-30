@@ -174,12 +174,25 @@ For a detailed usage flow and PVplant-combo suggestions, see `docs/13_usage_manu
 
 ## Local checks
 
+Use Python 3.10 or newer. On Windows, prefer the `py` launcher if bare
+`python` points to an older interpreter. Install the package in editable mode
+first so module commands resolve the `src/` layout:
+
 ```bash
-python -m pytest
-python -m ruff check .
-python -m obsidian_librarian.cli --help
-python evals/run_evals.py
+py -3.14 -m pip install -e ".[dev]"
 ```
+
+```bash
+py -3.14 -m pytest
+py -3.14 -m ruff check .
+py -3.14 -m obsidian_librarian.cli --help
+py -3.14 -m obsidian_patron.cli --help
+py -3.14 evals/run_evals.py
+```
+
+If bare `python` already points to Python 3.10 or newer, it can replace
+`py -3.14`. When running directly from an uninstalled checkout, set
+`PYTHONPATH=src` for the CLI help checks.
 
 ## Documentation map
 

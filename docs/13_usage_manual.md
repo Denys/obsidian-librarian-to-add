@@ -23,6 +23,13 @@ obsidian-librarian index --vault . --scope vault-and-staging
 obsidian-librarian search "your topic" --vault . --scope vault-and-staging
 ```
 
+The editable install matters for raw module checks such as
+`python -m obsidian_librarian.cli --help` and `python -m obsidian_patron.cli --help`,
+because the repository uses a `src/` package layout. Use Python 3.10 or newer;
+on Windows, prefer `py -3.14 -m ...` if bare `python` points to an older
+interpreter. If you are running from an uninstalled checkout, set
+`PYTHONPATH=src` before those module commands.
+
 For PDF classifier/manifest intake:
 
 ```bash

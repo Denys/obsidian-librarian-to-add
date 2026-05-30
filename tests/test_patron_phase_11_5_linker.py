@@ -30,7 +30,7 @@ def test_link_ingested_notes_matches_existing_title_and_reports_unmatched(tmp_pa
     assert result.unmatched_count == 2
     assert "[[Buck Converter|Buck Converter]]" in note.read_text(encoding="utf-8")
     report = (slug_dir / "_unmatched_candidates.md").read_text(encoding="utf-8")
-    assert report.startswith("# Candidate notes - review before creating manually")
+    assert report.startswith("# Candidate notes — review before creating manually")
     assert "Flux Capacitor" in report
     assert "source_sections: Chapter One" in report
     assert "example:" in report

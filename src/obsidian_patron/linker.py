@@ -236,7 +236,7 @@ def _example_context(text: str, candidate: str) -> str:
 
 
 def _render_unmatched_report(unmatched: dict[str, list[Candidate]]) -> str:
-    lines = ["# Candidate notes - review before creating manually", ""]
+    lines = ["# Candidate notes — review before creating manually", ""]
     if not unmatched:
         lines.append("- None")
         return "\n".join(lines) + "\n"

@@ -27,38 +27,33 @@ def _fake_conversion() -> DoclingConversionResult:
 
 def _structured_conversion() -> DoclingConversionResult:
     return DoclingConversionResult(
-        markdown=(
-            "# Chapter 1: Foundations\n\nBody\n\n"
-            "# Power Tables\n\n| Part | Value |\n| --- | --- |\n| MOSFET | 42 |\n\n"
-            "# Glossary\n\n- MOSFET: switch\n"
-        ),
+        markdown="# Ignored fallback\n\nBody",
         structured_json='{"kind":"docling"}',
         engine_version="docling-test",
-        tables_json='[{"rows": 1}]',
+        tables_json='{"tables":[{"rows": 2}]}',
         assets=(
             DoclingAsset(
-                relative_path=Path("image.png"),
-                content=b"figure-1",
+                relative_path="page-001-picture-001.png",
+                content=b"captioned",
                 caption="Figure 1: Converter Topology",
             ),
-            DoclingAsset(relative_path=Path("raw image.png"), content=b"figure-2"),
+            DoclingAsset(relative_path="raw-image.bin", content=b"fallback"),
         ),
         sections=(
             DoclingSection(
                 title="Chapter 1: Foundations",
                 heading_path="Chapter 1: Foundations",
-                markdown="# Chapter 1: Foundations\n\nBody",
+                markdown="# Chapter 1: Foundations\n\nIntro text.",
             ),
             DoclingSection(
                 title="Power Tables",
                 heading_path="Power Tables",
-                markdown="# Power Tables\n\n| Part | Value |\n| --- | --- |\n| MOSFET | 42 |",
+                markdown="# Power Tables\n\n| V | I |\n| - | - |",
             ),
             DoclingSection(
                 title="Glossary",
                 heading_path="Glossary",
                 markdown="# Glossary\n\n- MOSFET: switch",
-                kind="glossary-index",
             ),
         ),
         metadata={
@@ -69,7 +64,8 @@ def _structured_conversion() -> DoclingConversionResult:
             "subject": "Power electronics",
             "keywords": ["analog", "converter"],
         },
-        code_blocks=("print('hello')",),
+        tables=({"path": "$.body.tables", "payload": [{"rows": 2}]},),
+        code_blocks=("print('ok')",),
         figure_captions=("Figure 1: Converter Topology",),
         glossary_index_hints=("Glossary",),
     )
@@ -119,7 +115,7 @@ def test_ingest_pdf_creates_expected_tree_and_manifest(tmp_path: Path, monkeypat
 
     assert (out / "index.md").exists()
     assert (out / "00_metadata.md").exists()
-    assert (out / "01_full-document.md").exists()
+    assert (out / "01_converted.md").exists()
     assert (out / "attachments" / "fig_0001_img.png").exists()
     assert (out / "tables").exists()
     assert result.manifest_path.exists()
@@ -166,15 +162,15 @@ def test_ingest_manifest_and_frontmatter_include_ingest_run_id(tmp_path: Path, m
 
     index_text = (result.output_dir / "index.md").read_text(encoding="utf-8")
     metadata_text = (result.output_dir / "00_metadata.md").read_text(encoding="utf-8")
-    full_document_text = (result.output_dir / "01_full-document.md").read_text(encoding="utf-8")
+    section_text = (result.output_dir / "01_converted.md").read_text(encoding="utf-8")
     assert f"ingest_run_id: {run_id}" in index_text
     assert f"ingest_run_id: {run_id}" in metadata_text
-    assert f"ingest_run_id: {run_id}" in full_document_text
-    assert "status: ingested" in full_document_text
-    assert "origin: timing" in full_document_text
-    assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in full_document_text
-    assert "source_section: converted" in full_document_text
-    assert "\nsection: full-document\n" not in full_document_text
+    assert f"ingest_run_id: {run_id}" in section_text
+    assert "status: ingested" in section_text
+    assert "origin: timing" in section_text
+    assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in section_text
+    assert "source_section: converted" in section_text
+    assert "\nsection: converted\n" not in section_text
     assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in index_text
     assert f"source_pdf: {pdf.resolve(strict=False).as_posix()}" in metadata_text
 
@@ -210,7 +206,7 @@ def test_force_failure_preserves_existing_slug_directory(tmp_path: Path, monkeyp
         lambda _p: _fake_conversion(),
     )
     first = ingest_pdf_to_ingestion(pdf, vault)
-    original_text = (first.output_dir / "01_full-document.md").read_text(encoding="utf-8")
+    original_text = (first.output_dir / "01_converted.md").read_text(encoding="utf-8")
 
     def raise_error(_p: str | Path) -> DoclingConversionResult:
         raise RuntimeError("docling boom")
@@ -225,7 +221,7 @@ def test_force_failure_preserves_existing_slug_directory(tmp_path: Path, monkeyp
 
     out_dir = vault / "91_Ingestion" / "keep"
     assert out_dir.exists()
-    assert (out_dir / "01_full-document.md").read_text(encoding="utf-8") == original_text
+    assert (out_dir / "01_converted.md").read_text(encoding="utf-8") == original_text
     assert not (vault / "91_Ingestion" / "_archive" / "keep").exists()
 
 
@@ -255,7 +251,7 @@ def test_ingest_pdf_writes_multi_section_notes_and_toc_links(tmp_path: Path, mon
     assert "[[03_glossary|Glossary]]" in index_text
 
     section_text = (out / "01_chapter-1-foundations.md").read_text(encoding="utf-8")
-    assert "source_section: Chapter 1: Foundations" in section_text
+    assert 'source_section: "Chapter 1: Foundations"' in section_text
     assert "\nsection: Chapter 1: Foundations\n" not in section_text
 
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
@@ -319,11 +315,11 @@ def test_ingest_pdf_propagates_docling_metadata(tmp_path: Path, monkeypatch) -> 
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
 
     assert 'title: "Analog Handbook"' in metadata_text
-    assert "authors: [Ada Lovelace, Grace Hopper]" in metadata_text
+    assert 'authors: ["Ada Lovelace", "Grace Hopper"]' in metadata_text
     assert "year: 2026" in metadata_text
-    assert 'isbn: "978-1-2345-6789-0"' in metadata_text
+    assert "isbn: 978-1-2345-6789-0" in metadata_text
     assert 'subject: "Power electronics"' in metadata_text
-    assert "keywords: [analog, converter]" in metadata_text
+    assert 'keywords: [analog, converter]' in metadata_text
     assert f"ingest_run_id: {manifest['ingest_run_id']}" in metadata_text
     assert manifest["outputs"]["tables_count"] == 1
     assert manifest["outputs"]["code_blocks_count"] == 1

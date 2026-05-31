@@ -18,6 +18,7 @@ dependencies = [
 
 [tool.setuptools.package-data]
 obsidian_patron = ["config/*.yaml"]
+obsidian_librarian = ["gui/static/*.html"]
 
 [project.optional-dependencies]
 dev = [
@@ -37,6 +38,7 @@ ocr = [
 [project.scripts]
 obsidian-librarian = "obsidian_librarian.cli:main"
 obsidian-patron = "obsidian_patron.cli:main"
+obsidian-librarian-gui = "obsidian_librarian.gui.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

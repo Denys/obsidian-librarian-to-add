@@ -38,6 +38,33 @@ If you only want a dry run:
 obsidian-librarian ingest ./00_Inbox --vault . --mode read-only
 ```
 
+## Local GUI
+
+The GUI is a local browser workbench over the existing CLI commands. It does
+not replace the CLI and does not duplicate core ingest, search, validation, or
+Patron logic.
+
+Start it from a vault or from the repository:
+
+```powershell
+obsidian-librarian gui --vault . --host 127.0.0.1 --port 0
+```
+
+For scripted smoke checks, suppress browser launch:
+
+```powershell
+obsidian-librarian gui --vault . --host 127.0.0.1 --port 0 --no-browser
+```
+
+Expected behavior:
+
+- the server binds to `127.0.0.1` by default;
+- the startup output prints the local URL and a per-session token;
+- every GUI action displays the exact equivalent CLI command;
+- read-only actions can run immediately;
+- staging writes, Patron ingestion, promotion, OCR, and LLM paths are explicit;
+- raw source files are never modified by the GUI layer.
+
 ## Tool Choice
 
 | Need | Command family | Writes |

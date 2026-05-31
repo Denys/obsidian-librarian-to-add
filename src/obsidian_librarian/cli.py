@@ -130,6 +130,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to summarize in a later phase.",
     )
 
+    gui = subparsers.add_parser(
+        "gui",
+        help="Launch the local browser GUI.",
+    )
+    gui.add_argument("--vault", default=".", help="Default vault root path.")
+    gui.add_argument("--host", default="127.0.0.1", help="Bind host.")
+    gui.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        help="Bind port. Use 0 for a random port.",
+    )
+    gui.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Print URL without opening a browser.",
+    )
+
     return parser
 
 
@@ -159,6 +177,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "search":
         return run_search_command(args)
+
+    if args.command == "gui":
+        return run_gui_command(args)
 
     print(f"Command '{args.command}' is registered, but runtime behavior is not implemented yet.")
     return 0
@@ -318,6 +339,18 @@ def run_search_command(args: argparse.Namespace) -> int:
         fields = ",".join(hit.matched_fields)
         print(f"- {hit.path} (scope={hit.scope}, score={hit.score}, fields={fields})")
     return 0
+
+
+def run_gui_command(args: argparse.Namespace) -> int:
+    """Run the local browser GUI with a lazy import."""
+    from obsidian_librarian.gui.server import run_gui
+
+    return run_gui(
+        vault=args.vault,
+        host=args.host,
+        port=args.port,
+        no_browser=args.no_browser,
+    )
 
 
 if __name__ == "__main__":

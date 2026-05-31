@@ -1,0 +1,1289 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Obsidian Librarian Local Workbench</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050716;
+      --bg-2: #090d22;
+      --text: #edf7ff;
+      --muted: rgba(237, 247, 255, 0.66);
+      --faint: rgba(237, 247, 255, 0.42);
+      --line: rgba(255, 255, 255, 0.12);
+      --glass: rgba(6, 13, 28, 0.68);
+      --glass-2: rgba(16, 22, 43, 0.62);
+      --cyan: #00e5ff;
+      --amber: #ffb000;
+      --magenta: #ff4fd8;
+      --violet: #9b6cff;
+      --green: #45ff72;
+      --red: #ff4f6d;
+      --blue: #4d7cff;
+      --radius: 10px;
+      --mono: "Cascadia Mono", "Consolas", "SFMono-Regular", monospace;
+      --ui: "Segoe UI", "Aptos", "Noto Sans", sans-serif;
+      --display: "Bahnschrift", "Segoe UI Semibold", "Trebuchet MS", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      overflow: hidden;
+      color: var(--text);
+      font-family: var(--ui);
+      letter-spacing: 0;
+      background:
+        linear-gradient(125deg, rgba(0, 229, 255, 0.18), transparent 30%),
+        linear-gradient(235deg, rgba(255, 79, 216, 0.2), transparent 34%),
+        linear-gradient(315deg, rgba(255, 176, 0, 0.13), transparent 34%),
+        radial-gradient(ellipse at 50% 100%, rgba(69, 255, 114, 0.09), transparent 45%),
+        var(--bg);
+    }
+
+    body::before,
+    body::after {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      content: "";
+    }
+
+    body::before {
+      opacity: 0.48;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(135deg, transparent 0 46%, rgba(0, 229, 255, 0.08) 47% 48%, transparent 49% 100%);
+      background-size: 48px 48px, 48px 48px, 220px 220px;
+      mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    }
+
+    body::after {
+      opacity: 0.88;
+      background:
+        linear-gradient(90deg, rgba(0, 229, 255, 0.18), transparent 12%, transparent 88%, rgba(255, 79, 216, 0.2)),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.6));
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      color: inherit;
+      font: inherit;
+    }
+
+    button,
+    select,
+    input,
+    textarea {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.22);
+      outline: none;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.72);
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.52;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 184px minmax(0, 1fr);
+      grid-template-rows: 86px minmax(0, 1fr);
+      height: 100vh;
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .topbar,
+    .rail,
+    .workspace,
+    .module,
+    .inspector,
+    .report-strip,
+    .modal-panel {
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), transparent 32%), var(--glass);
+      backdrop-filter: blur(24px) saturate(1.25);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 20px 70px rgba(0, 0, 0, 0.34);
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 184px minmax(0, 1fr) auto;
+      align-items: stretch;
+      min-height: 0;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-right: 1px solid rgba(0, 229, 255, 0.26);
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px dashed var(--cyan);
+      border-radius: 8px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-weight: 700;
+      box-shadow: 0 0 26px rgba(0, 229, 255, 0.34);
+    }
+
+    .brand-title {
+      margin: 0;
+      color: #fff;
+      font-family: var(--display);
+      font-size: 0.98rem;
+      line-height: 1.05;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .brand-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+    }
+
+    .top-fields {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(170px, 0.55fr) minmax(190px, 0.65fr);
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .top-field,
+    .safety-chip {
+      display: grid;
+      align-content: center;
+      min-width: 0;
+      padding: 9px 12px;
+      border: 1px solid rgba(0, 229, 255, 0.18);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .label {
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .value {
+      overflow: hidden;
+      margin-top: 4px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .safety-zone {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 12px;
+      border-left: 1px solid rgba(255, 79, 216, 0.24);
+    }
+
+    .safety-chip {
+      min-width: 126px;
+      border-color: color-mix(in srgb, var(--tier-color, var(--cyan)) 52%, transparent);
+      color: var(--tier-color, var(--cyan));
+      box-shadow: inset 0 0 18px color-mix(in srgb, var(--tier-color, var(--cyan)) 12%, transparent);
+    }
+
+    .safety-chip strong {
+      font-family: var(--display);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+    }
+
+    .rail {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 0;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .rail-title {
+      padding: 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .nav {
+      display: grid;
+      align-content: start;
+      gap: 7px;
+      padding: 12px;
+    }
+
+    .nav-button {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      align-items: center;
+      gap: 8px;
+      min-height: 46px;
+      padding: 0 10px;
+      border-color: transparent;
+      color: var(--muted);
+      text-align: left;
+      background: transparent;
+    }
+
+    .nav-button .nav-icon {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid currentColor;
+      border-radius: 7px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+    }
+
+    .nav-button.active {
+      border-color: var(--page-color, var(--cyan));
+      color: var(--page-color, var(--cyan));
+      background: color-mix(in srgb, var(--page-color, var(--cyan)) 12%, transparent);
+      box-shadow: 0 0 22px color-mix(in srgb, var(--page-color, var(--cyan)) 22%, transparent);
+    }
+
+    .rail-status {
+      margin: 12px;
+      padding: 12px;
+      border: 1px solid rgba(69, 255, 114, 0.18);
+      border-radius: 8px;
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .rail-status span {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      color: var(--muted);
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      min-width: 0;
+      min-height: 0;
+      gap: 12px;
+    }
+
+    .workspace {
+      position: relative;
+      min-height: 0;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .workspace::before {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      content: "";
+      background:
+        linear-gradient(90deg, transparent 0 34%, rgba(0, 229, 255, 0.1) 34.2% 34.4%, transparent 34.6% 65%, rgba(255, 176, 0, 0.12) 65.2% 65.4%, transparent 65.6%),
+        linear-gradient(135deg, transparent 0 42%, rgba(155, 108, 255, 0.08) 42.2% 42.4%, transparent 42.6%);
+    }
+
+    .workspace-scroll {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      overflow: auto;
+      padding: 20px;
+    }
+
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .breadcrumb {
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+    }
+
+    .page-title {
+      margin: 5px 0 0;
+      font-family: var(--display);
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      line-height: 0.95;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      text-shadow: 0 0 18px color-mix(in srgb, var(--page-color, var(--cyan)) 52%, transparent);
+    }
+
+    .page-summary {
+      max-width: 620px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .page-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 278px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .module-flow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(210px, 1fr));
+      gap: 14px;
+    }
+
+    .module {
+      position: relative;
+      min-width: 0;
+      min-height: 315px;
+      padding: 16px;
+      border-radius: var(--radius);
+      border-color: color-mix(in srgb, var(--module-color, var(--cyan)) 45%, transparent);
+      box-shadow:
+        inset 0 0 24px color-mix(in srgb, var(--module-color, var(--cyan)) 10%, transparent),
+        0 0 34px color-mix(in srgb, var(--module-color, var(--cyan)) 14%, transparent);
+    }
+
+    .module::before {
+      position: absolute;
+      inset: 7px;
+      pointer-events: none;
+      border: 1px dashed color-mix(in srgb, var(--module-color, var(--cyan)) 72%, transparent);
+      border-radius: 8px;
+      content: "";
+      opacity: 0.8;
+    }
+
+    .module > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .module-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+      color: var(--module-color, var(--cyan));
+      font-family: var(--display);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .port-dot {
+      width: 11px;
+      height: 11px;
+      border: 2px solid var(--module-color, var(--cyan));
+      border-radius: 50%;
+      background: var(--bg);
+      box-shadow: 0 0 12px var(--module-color, var(--cyan));
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      min-width: 0;
+      padding: 10px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+    }
+
+    .field textarea {
+      min-height: 94px;
+      resize: vertical;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .row > input {
+      flex: 1;
+    }
+
+    .segmented,
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .segment,
+    .button,
+    .copy-button {
+      min-height: 38px;
+      padding: 0 12px;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .segment.active {
+      border-color: var(--module-color, var(--cyan));
+      color: var(--module-color, var(--cyan));
+      background: color-mix(in srgb, var(--module-color, var(--cyan)) 14%, transparent);
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 44px;
+      margin-bottom: 8px;
+      padding: 9px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--module-color, var(--cyan));
+    }
+
+    .command-box,
+    .output-box {
+      display: block;
+      width: 100%;
+      min-height: 130px;
+      overflow: auto;
+      padding: 13px;
+      border: 1px solid color-mix(in srgb, var(--module-color, var(--violet)) 34%, transparent);
+      border-radius: 8px;
+      color: #e9fbff;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      background: rgba(0, 0, 0, 0.34);
+    }
+
+    .run-button {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 12px;
+      border-color: var(--cyan);
+      color: var(--cyan);
+      font-family: var(--display);
+      text-transform: uppercase;
+      background: linear-gradient(90deg, rgba(0, 229, 255, 0.2), rgba(155, 108, 255, 0.12));
+      box-shadow: 0 0 24px rgba(0, 229, 255, 0.2);
+    }
+
+    .inspector {
+      padding: 14px;
+      border-color: rgba(255, 79, 216, 0.34);
+      border-radius: var(--radius);
+      box-shadow: 0 0 30px rgba(255, 79, 216, 0.16);
+    }
+
+    .inspector h2 {
+      margin: 0 0 12px;
+      color: var(--magenta);
+      font-family: var(--display);
+      font-size: 0.86rem;
+      text-transform: uppercase;
+    }
+
+    .patch-card {
+      margin-bottom: 10px;
+      padding: 11px;
+      border: 1px solid rgba(255, 79, 216, 0.18);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .patch-card strong {
+      display: block;
+      color: var(--tier-color, var(--cyan));
+      font-family: var(--display);
+      font-size: 0.84rem;
+      text-transform: uppercase;
+    }
+
+    .check-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .check-line span:last-child {
+      color: var(--green);
+    }
+
+    .report-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      gap: 10px;
+      padding: 12px;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .report-card {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid color-mix(in srgb, var(--card-color, var(--cyan)) 42%, transparent);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      box-shadow: inset 0 0 18px color-mix(in srgb, var(--card-color, var(--cyan)) 9%, transparent);
+    }
+
+    .report-card strong {
+      display: block;
+      overflow: hidden;
+      color: var(--card-color, var(--cyan));
+      font-family: var(--display);
+      font-size: 0.8rem;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .report-card span {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .page-placeholder {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 16px;
+    }
+
+    .action-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .action-button {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 54px;
+      padding: 12px;
+      text-align: left;
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .action-button.active {
+      border-color: var(--page-color, var(--cyan));
+      box-shadow: inset 0 0 22px color-mix(in srgb, var(--page-color, var(--cyan)) 12%, transparent);
+    }
+
+    .action-button strong {
+      color: var(--text);
+      font-family: var(--display);
+      text-transform: uppercase;
+    }
+
+    .action-button span {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .modal {
+      position: fixed;
+      z-index: 8;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.62);
+    }
+
+    .modal.open {
+      display: grid;
+    }
+
+    .modal-panel {
+      width: min(640px, 100%);
+      padding: 18px;
+      border-color: var(--amber);
+      border-radius: var(--radius);
+    }
+
+    .modal-panel h2 {
+      margin: 0 0 8px;
+      color: var(--amber);
+      font-family: var(--display);
+      text-transform: uppercase;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1120px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        height: auto;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .brand,
+      .safety-zone {
+        border: 0;
+      }
+
+      .top-fields,
+      .module-flow,
+      .page-grid,
+      .page-placeholder,
+      .report-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .rail {
+        min-height: auto;
+      }
+
+      .nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .workspace-scroll {
+        overflow: visible;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">OL</div>
+        <div>
+          <h1 class="brand-title">Obsidian<br>Librarian</h1>
+          <p class="brand-subtitle">Local Workbench</p>
+        </div>
+      </div>
+      <div class="top-fields">
+        <div class="top-field">
+          <span class="label">Vault</span>
+          <span class="value" id="vault-display">Loading</span>
+        </div>
+        <div class="top-field">
+          <span class="label">Profile</span>
+          <span class="value">Librarian (Default)</span>
+        </div>
+        <div class="top-field">
+          <span class="label">Local Server</span>
+          <span class="value" id="server-display">127.0.0.1</span>
+        </div>
+      </div>
+      <div class="safety-zone" aria-label="Safety tiers">
+        <div class="safety-chip" style="--tier-color: var(--cyan)"><strong>Read-only</strong></div>
+        <div class="safety-chip" style="--tier-color: var(--amber)"><strong>Staging Write</strong></div>
+        <div class="safety-chip" style="--tier-color: var(--magenta)"><strong>Patron Ingestion</strong></div>
+        <div class="safety-chip" style="--tier-color: var(--green)"><strong>Promotion</strong></div>
+      </div>
+    </header>
+
+    <aside class="rail">
+      <div class="rail-title">Module Browser</div>
+      <nav class="nav" id="nav"></nav>
+      <div class="rail-status">
+        System Status
+        <span>Server <b>on</b></span>
+        <span>Vault <b>local</b></span>
+        <span>LLM <b>off</b></span>
+        <span>OCR <b>off</b></span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="workspace">
+        <div class="workspace-scroll" id="workspace"></div>
+      </section>
+      <section class="report-strip" id="reports" aria-label="Recent reports"></section>
+    </main>
+  </div>
+
+  <div class="modal" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal-panel">
+      <h2 id="confirm-title">Confirmation Required</h2>
+      <p id="confirm-message">This action can write review artifacts.</p>
+      <pre class="command-box" id="confirm-command"></pre>
+      <div class="modal-actions">
+        <button class="button" type="button" id="cancel-confirm">Cancel</button>
+        <button class="button" type="button" id="approve-confirm">Run Confirmed</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.GUI_BOOTSTRAP = __GUI_BOOTSTRAP__;
+
+    const tierColors = {
+      "read-only": "var(--cyan)",
+      "staging-write": "var(--amber)",
+      "patron-ingestion": "var(--magenta)",
+      "promotion": "var(--green)",
+      "unknown": "var(--red)"
+    };
+
+    const pages = [
+      { id: "dashboard", icon: "DB", label: "Dashboard", color: "var(--cyan)", actions: ["librarian_index", "librarian_search"] },
+      { id: "ingest", icon: "IN", label: "Ingest", color: "var(--cyan)", actions: ["librarian_ingest"] },
+      { id: "validate", icon: "VA", label: "Validate", color: "var(--green)", actions: ["librarian_validate", "librarian_review_quality"] },
+      { id: "search", icon: "SE", label: "Search", color: "var(--violet)", actions: ["librarian_index", "librarian_search"] },
+      { id: "reports", icon: "RP", label: "Reports", color: "var(--violet)", actions: ["librarian_review_quality", "patron_unmatched", "patron_status"] },
+      { id: "patron", icon: "PT", label: "Patron", color: "var(--magenta)", actions: ["patron_ingest", "patron_propose", "patron_link", "patron_unmatched", "patron_status", "patron_promote", "patron_unpromote"] },
+      { id: "settings", icon: "ST", label: "Settings", color: "var(--blue)", actions: [] }
+    ];
+
+    const state = {
+      page: "ingest",
+      actions: [],
+      params: {},
+      selectedAction: "librarian_ingest",
+      pendingRun: null,
+      lastResult: null,
+      recent: [
+        { title: "Read-only", detail: "Inbox scan ready", color: "var(--cyan)" },
+        { title: "Validation", detail: "No writes by default", color: "var(--green)" },
+        { title: "Staging Write", detail: "Requires confirm", color: "var(--amber)" },
+        { title: "Patron Ingestion", detail: "91_Ingestion gated", color: "var(--magenta)" },
+        { title: "Promotion", detail: "Trusted vault locked", color: "var(--green)" }
+      ]
+    };
+
+    const bootstrap = window.GUI_BOOTSTRAP || {};
+    const apiHeaders = {
+      "Content-Type": "application/json",
+      "X-Gui-Token": bootstrap.token || ""
+    };
+
+    function actionById(id) {
+      return state.actions.find((action) => action.id === id);
+    }
+
+    function pageById(id) {
+      return pages.find((page) => page.id === id) || pages[1];
+    }
+
+    function defaultParams(action) {
+      const defaults = {};
+      for (const param of action.params || []) {
+        defaults[param.name] = param.default ?? "";
+      }
+      if ("vault" in defaults && !defaults.vault) {
+        defaults.vault = bootstrap.defaultVault || ".";
+      }
+      return defaults;
+    }
+
+    function paramsForAction(action) {
+      if (!state.params[action.id]) {
+        state.params[action.id] = defaultParams(action);
+      }
+      return state.params[action.id];
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    async function api(path, payload) {
+      const options = { headers: apiHeaders };
+      if (payload !== undefined) {
+        options.method = "POST";
+        options.body = JSON.stringify(payload);
+      }
+      const response = await fetch(path, options);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || data.output || "GUI request failed");
+      }
+      return data;
+    }
+
+    function renderNav() {
+      const nav = document.getElementById("nav");
+      nav.innerHTML = pages.map((page) => `
+        <button class="nav-button ${state.page === page.id ? "active" : ""}" style="--page-color: ${page.color}" data-page="${page.id}" type="button">
+          <span class="nav-icon">${page.icon}</span>
+          <span>${page.label}</span>
+        </button>
+      `).join("");
+      nav.querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.page = button.dataset.page;
+          const page = pageById(state.page);
+          if (page.actions.length) {
+            state.selectedAction = page.actions[0];
+          }
+          render();
+        });
+      });
+    }
+
+    function renderReports() {
+      document.getElementById("reports").innerHTML = state.recent.map((item) => `
+        <article class="report-card" style="--card-color: ${item.color}">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span>${escapeHtml(item.detail)}</span>
+        </article>
+      `).join("");
+    }
+
+    function safetyTier(action, params) {
+      if (!action) return "unknown";
+      if ((action.id === "librarian_ingest" || action.id === "librarian_enrich") && (params.mode || "read-only") === "read-only") {
+        return "read-only";
+      }
+      return action.safety_tier;
+    }
+
+    function commandPreview(action, params) {
+      if (!action) return "";
+      const quoted = (value) => {
+        const text = String(value ?? "");
+        return /\s/.test(text) ? `"${text.replaceAll('"', '\\"')}"` : text;
+      };
+      const addCommon = (argv) => [action.binary, ...argv].map(quoted).join(" ");
+      switch (action.id) {
+        case "librarian_ingest": {
+          const argv = ["ingest", params.inbox || "<inbox>", "--vault", params.vault || ".", "--mode", params.mode || "read-only"];
+          if (params.include_pdf) argv.push("--include-pdf");
+          if (params.pdf_converter && params.pdf_converter !== "none") argv.push("--pdf-converter", params.pdf_converter);
+          if (params.pdf_ocr) argv.push("--pdf-ocr");
+          return addCommon(argv);
+        }
+        case "librarian_validate":
+          return addCommon(["validate", params.path || "<path>"]);
+        case "librarian_review_quality":
+          return addCommon(["review-quality", params.path || "<path>"]);
+        case "librarian_index":
+          return addCommon(["index", "--vault", params.vault || ".", "--scope", params.scope || "vault"]);
+        case "librarian_search":
+          return addCommon(["search", params.query || "<query>", "--vault", params.vault || ".", "--scope", params.scope || "vault"]);
+        case "librarian_enrich":
+          return addCommon(["enrich", params.path || "<path>", "--vault", params.vault || ".", "--mode", params.mode || "read-only", "--extractor", params.extractor || "mock", "--model", params.model || "gpt-5.4-mini"]);
+        case "patron_ingest": {
+          const argv = ["ingest", params.pdf || "<pdf>", "--vault", params.vault || "."];
+          if (params.force) argv.push("--force");
+          return addCommon(argv);
+        }
+        case "patron_propose": {
+          const argv = ["propose", params.slug || "<slug>", "--vault", params.vault || "."];
+          if (params.allow_new_tags) argv.push("--allow-new-tags");
+          if (params.llm) argv.push("--llm");
+          argv.push("--model", params.model || "gpt-5.4-mini");
+          return addCommon(argv);
+        }
+        case "patron_link":
+          return addCommon(["link", params.slug || "<slug>", "--vault", params.vault || "."]);
+        case "patron_unmatched":
+          return addCommon(["unmatched", params.slug || "<slug>", "--vault", params.vault || "."]);
+        case "patron_status":
+          return addCommon(["status", params.slug || "<slug>", "--vault", params.vault || "."]);
+        case "patron_promote": {
+          const argv = ["promote", params.slug || "<slug>", "--vault", params.vault || "."];
+          if ((params.target || "staging") === "trusted") argv.push("--to-trusted", "--hub", params.hub || "<hub>");
+          else argv.push("--to-staging");
+          if (params.override) argv.push("--override");
+          return addCommon(argv);
+        }
+        case "patron_unpromote":
+          return addCommon(["unpromote", params.slug || "<slug>", "--vault", params.vault || "."]);
+        default:
+          return action.binary;
+      }
+    }
+
+    function renderField(action, param, params) {
+      const value = params[param.name] ?? "";
+      if (param.kind === "bool") {
+        const optIn = ["pdf_ocr", "llm", "extractor"].includes(param.name) ? " (explicit opt-in)" : "";
+        return `
+          <label class="toggle">
+            <span>${escapeHtml(param.label)}${optIn}<br><small>${escapeHtml(param.help || "Off by default")}</small></span>
+            <input type="checkbox" data-action="${action.id}" data-param="${param.name}" ${value ? "checked" : ""}>
+          </label>
+        `;
+      }
+      if (param.kind === "choice") {
+        return `
+          <div class="field">
+            <label for="${action.id}-${param.name}">${escapeHtml(param.label)}</label>
+            <select id="${action.id}-${param.name}" data-action="${action.id}" data-param="${param.name}">
+              ${(param.choices || []).map((choice) => `<option value="${escapeHtml(choice)}" ${choice === value ? "selected" : ""}>${escapeHtml(choice)}</option>`).join("")}
+            </select>
+          </div>
+        `;
+      }
+      const type = param.kind === "query" || param.kind === "text" || param.kind === "slug" ? "text" : "text";
+      return `
+        <div class="field">
+          <label for="${action.id}-${param.name}">${escapeHtml(param.label)}</label>
+          <div class="row">
+            <input id="${action.id}-${param.name}" type="${type}" value="${escapeHtml(value)}" data-action="${action.id}" data-param="${param.name}">
+            ${["vault", "dir", "file"].includes(param.kind) ? `<button class="copy-button" type="button" data-browse="${action.id}:${param.name}">Browse</button>` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderIngestPage(action, params, tier) {
+      return `
+        <div class="module-flow">
+          <section class="module" style="--module-color: var(--cyan)">
+            <div class="module-title"><span>01 Source Module</span><span class="port-dot"></span></div>
+            <div class="segmented" aria-label="Source type">
+              <button class="segment active" type="button">Folder</button>
+              <button class="segment" type="button" id="paste-tab">Paste</button>
+              <button class="segment" type="button">Drop</button>
+            </div>
+            ${renderField(action, action.params.find((p) => p.name === "inbox"), params)}
+            ${renderField(action, action.params.find((p) => p.name === "vault"), params)}
+            <div class="field">
+              <label for="paste-text">Paste source text</label>
+              <textarea id="paste-text" placeholder="# Pasted note"></textarea>
+              <button class="button" type="button" id="save-paste">Save pasted source</button>
+            </div>
+          </section>
+
+          <section class="module" style="--module-color: var(--amber)">
+            <div class="module-title"><span>02 Transform Module</span><span class="port-dot"></span></div>
+            ${renderField(action, action.params.find((p) => p.name === "mode"), params)}
+            ${renderField(action, action.params.find((p) => p.name === "include_pdf"), params)}
+            ${renderField(action, action.params.find((p) => p.name === "pdf_converter"), params)}
+            ${renderField(action, action.params.find((p) => p.name === "pdf_ocr"), params)}
+          </section>
+
+          <section class="module" style="--module-color: var(--violet)">
+            <div class="module-title"><span>03 Output Module</span><span class="port-dot"></span></div>
+            <span class="label">Command Preview</span>
+            <pre class="command-box" id="command-preview">${escapeHtml(commandPreview(action, params))}</pre>
+            <div class="row">
+              <button class="copy-button" type="button" id="copy-command">Copy CLI</button>
+              <button class="run-button" type="button" id="run-action">${tier === "read-only" ? "Run Preview" : "Request Confirmation"}</button>
+            </div>
+            <pre class="output-box" id="output-box">${escapeHtml(state.lastResult?.output || "No run output yet.")}</pre>
+          </section>
+        </div>
+      `;
+    }
+
+    function renderGenericPage(page, action, params, tier) {
+      const actions = page.actions.map((id) => actionById(id)).filter(Boolean);
+      return `
+        <div class="page-placeholder">
+          <section class="module" style="--module-color: ${page.color}">
+            <div class="module-title"><span>Action Matrix</span><span class="port-dot"></span></div>
+            <div class="action-list">
+              ${actions.map((item) => `
+                <button class="action-button ${item.id === action.id ? "active" : ""}" type="button" data-action-select="${item.id}">
+                  <span><strong>${escapeHtml(item.label)}</strong><br><span>${escapeHtml(item.summary)}</span></span>
+                  <span>${escapeHtml(item.safety_tier)}</span>
+                </button>
+              `).join("") || `<p class="page-summary">Settings are local to this browser session. Backend execution uses the existing CLI only.</p>`}
+            </div>
+          </section>
+          <section class="module" style="--module-color: ${page.color}">
+            <div class="module-title"><span>Selected Command</span><span class="port-dot"></span></div>
+            ${(action.params || []).map((param) => renderField(action, param, params)).join("")}
+            <span class="label">Command Preview</span>
+            <pre class="command-box" id="command-preview">${escapeHtml(commandPreview(action, params))}</pre>
+            <button class="run-button" type="button" id="run-action">${tier === "read-only" ? "Run Read-only" : "Request Confirmation"}</button>
+            <pre class="output-box" id="output-box">${escapeHtml(state.lastResult?.output || "No run output yet.")}</pre>
+          </section>
+        </div>
+      `;
+    }
+
+    function renderInspector(action, params, tier) {
+      const tierColor = tierColors[tier] || tierColors.unknown;
+      const target = tier === "read-only" ? "No writes" : tier === "staging-write" ? "90_Staging" : tier === "patron-ingestion" ? "91_Ingestion" : "Trusted promotion";
+      return `
+        <aside class="inspector" style="--tier-color: ${tierColor}">
+          <h2>Safety Patch Panel</h2>
+          <div class="patch-card">
+            <strong>${escapeHtml(tier)}</strong>
+            <div class="check-line"><span>Current action</span><span>${escapeHtml(action.label)}</span></div>
+            <div class="check-line"><span>Write target</span><span>${escapeHtml(target)}</span></div>
+          </div>
+          <div class="patch-card">
+            <strong>Provenance Checks</strong>
+            <div class="check-line"><span>Vault path is local</span><span>on</span></div>
+            <div class="check-line"><span>Source path visible</span><span>on</span></div>
+            <div class="check-line"><span>No source mutation</span><span>locked</span></div>
+            <div class="check-line"><span>No overwrite default</span><span>locked</span></div>
+          </div>
+          <div class="patch-card">
+            <strong>Explicit Options</strong>
+            <div class="check-line"><span>OCR</span><span>${params.pdf_ocr ? "on" : "off"}</span></div>
+            <div class="check-line"><span>LLM</span><span>${params.llm || params.extractor === "openai" ? "on" : "off"}</span></div>
+            <div class="check-line"><span>Confirmation</span><span>${tier === "read-only" ? "not needed" : "required"}</span></div>
+          </div>
+        </aside>
+      `;
+    }
+
+    function renderWorkspace() {
+      const page = pageById(state.page);
+      const fallbackAction = page.actions[0] || "librarian_ingest";
+      const action = actionById(state.selectedAction) || actionById(fallbackAction);
+      const params = paramsForAction(action);
+      const tier = safetyTier(action, params);
+      document.documentElement.style.setProperty("--page-color", page.color);
+
+      const body = page.id === "ingest"
+        ? renderIngestPage(action, params, tier)
+        : renderGenericPage(page, action, params, tier);
+
+      document.getElementById("workspace").innerHTML = `
+        <div class="page-head">
+          <div>
+            <div class="breadcrumb">Local Workbench / ${escapeHtml(page.label)}</div>
+            <h2 class="page-title">${escapeHtml(page.label)}</h2>
+            <p class="page-summary">${escapeHtml(action?.summary || "Local GUI settings and server status.")}</p>
+          </div>
+        </div>
+        <div class="page-grid">
+          <div>${body}</div>
+          ${renderInspector(action, params, tier)}
+        </div>
+      `;
+      wireWorkspace(action, params);
+    }
+
+    function wireWorkspace(action, params) {
+      document.querySelectorAll("[data-param]").forEach((input) => {
+        input.addEventListener("input", () => {
+          const targetAction = actionById(input.dataset.action);
+          const targetParams = paramsForAction(targetAction);
+          targetParams[input.dataset.param] = input.type === "checkbox" ? input.checked : input.value;
+          renderWorkspace();
+        });
+      });
+
+      document.querySelectorAll("[data-action-select]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.selectedAction = button.dataset.actionSelect;
+          state.lastResult = null;
+          renderWorkspace();
+        });
+      });
+
+      document.querySelectorAll("[data-browse]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const [actionId, paramName] = button.dataset.browse.split(":");
+          const targetAction = actionById(actionId);
+          const targetParams = paramsForAction(targetAction);
+          try {
+            const current = targetParams[paramName] || targetParams.vault || bootstrap.defaultVault || ".";
+            const result = await api("/api/browse", { path: current });
+            targetParams[paramName] = result.path;
+            state.lastResult = { output: `Browsed: ${result.path}` };
+            renderWorkspace();
+          } catch (error) {
+            state.lastResult = { output: `Browse error: ${error.message}` };
+            renderWorkspace();
+          }
+        });
+      });
+
+      const savePaste = document.getElementById("save-paste");
+      if (savePaste) {
+        savePaste.addEventListener("click", async () => {
+          const text = document.getElementById("paste-text").value;
+          try {
+            const result = await api("/api/paste", { text, kind: "md" });
+            params.inbox = result.inbox_dir;
+            state.lastResult = { output: `${result.provenance}\n${result.file_path}` };
+            renderWorkspace();
+          } catch (error) {
+            state.lastResult = { output: `Paste error: ${error.message}` };
+            renderWorkspace();
+          }
+        });
+      }
+
+      const copyCommand = document.getElementById("copy-command");
+      if (copyCommand) {
+        copyCommand.addEventListener("click", async () => {
+          await navigator.clipboard.writeText(commandPreview(action, params));
+          copyCommand.textContent = "Copied";
+        });
+      }
+
+      const runButton = document.getElementById("run-action");
+      if (runButton) {
+        runButton.addEventListener("click", () => runSelected(false));
+      }
+    }
+
+    async function runSelected(confirmed) {
+      const action = actionById(state.selectedAction);
+      const params = paramsForAction(action);
+      try {
+        const result = await api("/api/run", { action_id: action.id, params, confirmed });
+        if (result.status === "needs_confirmation") {
+          state.pendingRun = { action, params };
+          document.getElementById("confirm-command").textContent = result.equivalent_cli;
+          document.getElementById("confirm-message").textContent = `${result.safety_tier} action requires confirmation before execution.`;
+          document.getElementById("confirm-modal").classList.add("open");
+          return;
+        }
+        state.lastResult = result;
+        state.recent.unshift({
+          title: result.status === "ok" ? "Run Complete" : "Run Error",
+          detail: `${action.label} exit ${result.exit_code}`,
+          color: result.status === "ok" ? "var(--green)" : "var(--red)"
+        });
+        state.recent = state.recent.slice(0, 5);
+        render();
+      } catch (error) {
+        state.lastResult = { output: `Run error: ${error.message}` };
+        render();
+      }
+    }
+
+    function wireModal() {
+      document.getElementById("cancel-confirm").addEventListener("click", () => {
+        document.getElementById("confirm-modal").classList.remove("open");
+        state.pendingRun = null;
+      });
+      document.getElementById("approve-confirm").addEventListener("click", async () => {
+        document.getElementById("confirm-modal").classList.remove("open");
+        await runSelected(true);
+      });
+    }
+
+    function render() {
+      renderNav();
+      renderReports();
+      renderWorkspace();
+      document.getElementById("vault-display").textContent = bootstrap.defaultVault || ".";
+      document.getElementById("server-display").textContent = bootstrap.serverUrl || "127.0.0.1";
+    }
+
+    async function init() {
+      wireModal();
+      try {
+        const data = await api("/api/actions");
+        state.actions = data.actions;
+      } catch (error) {
+        state.actions = [];
+        state.lastResult = { output: `Startup error: ${error.message}` };
+      }
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>

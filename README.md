@@ -114,6 +114,18 @@ obsidian-librarian validate ./90_Staging
 obsidian-librarian review-quality ./90_Staging
 ```
 
+Launch the local browser GUI when you want the same workflows with path pickers,
+visible safety tiers, confirmation gates, and copyable CLI previews:
+
+```powershell
+obsidian-librarian gui --vault . --host 127.0.0.1 --port 0
+```
+
+The GUI binds to `127.0.0.1` by default and prints a per-session token. Every
+action shows its equivalent CLI command before it runs. Read-only actions run
+directly; staging, Patron ingestion, and promotion actions require explicit
+confirmation. OCR and LLM options remain off unless selected.
+
 Build a deterministic vault index and search it:
 
 ```powershell

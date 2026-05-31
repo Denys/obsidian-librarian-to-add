@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Obsidian Librarian — GUI Concept</title>
+<style>
+  /* ============================================================
+     Obsidian Librarian / Patron — GUI concept
+     Palette + style references:
+       - DVPE "Stitch Neon" node graph (neon accents, glow cards,
+         three-pane Modules / Canvas / Inspector layout)
+       - Pocket TTS Studio (liquid-glass / glassmorphism panels,
+         mint->yellow gradient CTA, soft chips)
+     Safety tiers are the organizing color system:
+       read-only -> cyan | draft -> green | patron -> amber | promote -> magenta
+     ============================================================ */
+
+  :root{
+    --bg-0:#090a12;
+    --bg-1:#0b0d16;
+    --glass:rgba(255,255,255,.055);
+    --glass-2:rgba(255,255,255,.025);
+    --stroke:rgba(255,255,255,.10);
+    --stroke-soft:rgba(255,255,255,.06);
+    --ink:#eef2f8;
+    --ink-dim:#9aa4b6;
+    --ink-faint:#6b7488;
+
+    /* safety-tier neon accents */
+    --t-read:#34e0e0;   /* read-only  -> cyan/teal  */
+    --t-draft:#3ee07a;  /* draft      -> neon green  */
+    --t-patron:#f5a623; /* ingestion  -> amber       */
+    --t-promote:#ff5d73;/* promotion  -> magenta/red */
+    --accent:#34e0e0;   /* live accent, set per selection */
+
+    --cta-a:#7ef0c0; --cta-b:#bdec96; --cta-c:#f0e08a; /* mint -> yellow */
+
+    --radius:20px;
+    --radius-sm:13px;
+    --blur:blur(22px) saturate(135%);
+    --font:"Segoe UI",Inter,system-ui,-apple-system,"Helvetica Neue",sans-serif;
+    --mono:"JetBrains Mono","SF Mono",ui-monospace,"Cascadia Code",Consolas,monospace;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:var(--font);
+    color:var(--ink);
+    background:
+      radial-gradient(1100px 720px at 6% -8%, rgba(122,31,43,.55), transparent 58%),
+      radial-gradient(950px 680px at 102% -6%, rgba(74,31,74,.55), transparent 55%),
+      radial-gradient(820px 620px at -6% 108%, rgba(27,74,69,.42), transparent 60%),
+      radial-gradient(900px 700px at 60% 120%, rgba(40,30,90,.35), transparent 60%),
+      linear-gradient(160deg,var(--bg-1),var(--bg-0));
+    background-attachment:fixed;
+    overflow:hidden;
+  }
+  ::selection{background:rgba(52,224,224,.28)}
+
+  /* ---------- glass primitives ---------- */
+  .glass{
+    background:linear-gradient(158deg,var(--glass),var(--glass-2));
+    border:1px solid var(--stroke);
+    border-radius:var(--radius);
+    backdrop-filter:var(--blur);
+    -webkit-backdrop-filter:var(--blur);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),
+               inset 0 0 0 1px rgba(255,255,255,.015),
+               0 26px 60px -28px rgba(0,0,0,.75);
+  }
+  .pill{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:7px 13px;border-radius:999px;
+    background:rgba(255,255,255,.05);
+    border:1px solid var(--stroke);
+    color:var(--ink-dim);font-size:12.5px;font-weight:600;
+    backdrop-filter:blur(8px);cursor:pointer;
+    transition:.18s ease;white-space:nowrap;
+  }
+  .pill:hover{color:var(--ink);background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.18)}
+  .pill.on{color:#0b0d16;background:linear-gradient(90deg,#bfe9ff,#9fd8ff);border-color:transparent}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 9px 1px currentColor}
+
+  /* ---------- app shell ---------- */
+  .app{
+    display:grid;
+    grid-template-columns:286px minmax(0,1fr) 332px;
+    grid-template-rows:60px minmax(0,1fr) 34px;
+    gap:14px;height:100vh;padding:14px;
+  }
+  header{grid-column:1 / -1;display:flex;align-items:center;gap:14px;padding:0 16px}
+  .brandmark{
+    width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;
+    background:radial-gradient(120% 120% at 30% 20%,#7a1f2b,#1b4a45 70%,#0b0d16);
+    border:1px solid rgba(255,255,255,.16);
+    box-shadow:0 0 22px -4px rgba(52,224,224,.5),inset 0 1px 0 rgba(255,255,255,.25);
+  }
+  .brandmark svg{width:20px;height:20px}
+  .brand h1{font-size:15px;margin:0;letter-spacing:.2px}
+  .brand p{margin:1px 0 0;font-size:11px;color:var(--ink-faint)}
+  .seg{display:flex;gap:2px;padding:4px;margin-left:6px}
+  .seg button{
+    border:0;background:transparent;color:var(--ink-faint);
+    padding:6px 9px;border-radius:9px;cursor:pointer;font-size:12px;transition:.15s;
+  }
+  .seg button.on{background:rgba(255,255,255,.10);color:var(--ink)}
+  .spacer{flex:1}
+  .vaultchip{font-family:var(--mono);font-size:11.5px;color:var(--t-read)}
+  .pill.amber{color:#f5c372;border-color:rgba(245,166,35,.35);background:rgba(245,166,35,.10)}
+  .pill.amber.on{color:#1a1206;background:linear-gradient(90deg,#ffcf7a,#f5a623)}
+
+  /* ---------- sidebar ---------- */
+  aside.side{padding:14px;display:flex;flex-direction:column;min-height:0}
+  .search{
+    display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;
+    background:rgba(0,0,0,.22);border:1px solid var(--stroke-soft);margin-bottom:12px;
+  }
+  .search input{flex:1;background:transparent;border:0;outline:0;color:var(--ink);font-size:13px}
+  .search svg{width:15px;height:15px;color:var(--ink-faint)}
+  .grouplabel{
+    display:flex;align-items:center;gap:8px;margin:14px 4px 8px;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;
+  }
+  .grouplabel .count{margin-left:auto;font-size:10.5px;color:var(--ink-faint);
+    background:rgba(255,255,255,.06);padding:1px 7px;border-radius:999px}
+  .actions{overflow:auto;margin:-4px;padding:4px;flex:1;min-height:0}
+  .actions::-webkit-scrollbar{width:8px}
+  .actions::-webkit-scrollbar-thumb{background:rgba(255,255,255,.10);border-radius:8px}
+  .act{
+    display:flex;align-items:center;gap:11px;width:100%;text-align:left;cursor:pointer;
+    padding:10px 11px;border-radius:13px;margin-bottom:6px;color:var(--ink-dim);
+    background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));
+    border:1px solid var(--stroke-soft);border-left:3px solid var(--tc,var(--t-read));
+    transition:.16s ease;font-size:13px;
+  }
+  .act:hover{color:var(--ink);background:rgba(255,255,255,.07);transform:translateX(2px)}
+  .act.on{
+    color:#fff;border-color:var(--tc);
+    background:linear-gradient(180deg,color-mix(in srgb,var(--tc) 16%,transparent),rgba(255,255,255,.02));
+    box-shadow:0 0 0 1px color-mix(in srgb,var(--tc) 40%,transparent),
+               0 0 22px -6px var(--tc);
+  }
+  .act .ic{width:26px;height:26px;border-radius:8px;flex:none;display:grid;place-items:center;
+    background:rgba(0,0,0,.25);border:1px solid var(--stroke-soft);color:var(--tc)}
+  .act .ic svg{width:14px;height:14px}
+  .act .meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .act .meta b{font-weight:600;font-size:13px}
+  .act .meta span{font-size:10.5px;color:var(--ink-faint)}
+  .act .tdot{margin-left:auto;color:var(--tc)}
+  .legend{margin-top:10px;padding:11px 12px;border-radius:13px;background:rgba(0,0,0,.20);
+    border:1px solid var(--stroke-soft);font-size:11px;color:var(--ink-dim)}
+  .legend .row{display:flex;align-items:center;gap:8px;margin:5px 0}
+
+  /* ---------- main ---------- */
+  main{display:flex;flex-direction:column;gap:14px;min-height:0;overflow:auto;padding-right:2px}
+  main::-webkit-scrollbar{width:9px}
+  main::-webkit-scrollbar-thumb{background:rgba(255,255,255,.10);border-radius:8px}
+  .card{padding:16px 18px}
+  .card h2{margin:0 0 2px;font-size:13.5px;display:flex;align-items:center;gap:9px}
+  .card .sub{font-size:11.5px;color:var(--ink-faint);margin:0 0 14px}
+  .card h2 .badge{margin-left:auto}
+
+  .vaultrow{display:flex;gap:10px;align-items:center}
+  .field{flex:1;display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.26);
+    border:1px solid var(--stroke-soft);border-radius:12px;padding:10px 13px}
+  .field svg{width:15px;height:15px;color:var(--ink-faint)}
+  .field input,.field select{flex:1;background:transparent;border:0;outline:0;color:var(--ink);
+    font-size:13px;font-family:var(--mono)}
+  .field select{font-family:var(--font)}
+  select option{background:#14161f;color:var(--ink)}
+  .btn{border:1px solid var(--stroke);background:rgba(255,255,255,.06);color:var(--ink);
+    padding:10px 15px;border-radius:12px;font-size:12.5px;font-weight:600;cursor:pointer;transition:.16s}
+  .btn:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.2)}
+
+  /* input intake: drop + paste */
+  .intake{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .drop{border:1.5px dashed rgba(255,255,255,.16);border-radius:var(--radius-sm);
+    padding:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:8px;text-align:center;color:var(--ink-dim);background:rgba(0,0,0,.14);transition:.18s;cursor:copy}
+  .drop.hover{border-color:var(--t-read);background:color-mix(in srgb,var(--t-read) 10%,transparent);color:var(--ink)}
+  .drop svg{width:26px;height:26px;color:var(--ink-faint)}
+  .drop b{font-size:13px;color:var(--ink)}
+  .drop small{font-size:10.5px;color:var(--ink-faint)}
+  .pastewrap{position:relative;display:flex;flex-direction:column}
+  .pastewrap textarea{flex:1;min-height:104px;resize:none;background:rgba(0,0,0,.26);
+    border:1px solid var(--stroke-soft);border-radius:var(--radius-sm);padding:11px 13px;
+    color:var(--ink);font-family:var(--mono);font-size:12px;line-height:1.55;outline:0}
+  .pastewrap textarea:focus{border-color:var(--t-read);box-shadow:0 0 0 3px color-mix(in srgb,var(--t-read) 18%,transparent)}
+  .pastemeta{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:10.5px;color:var(--ink-faint)}
+  .prov{color:var(--t-draft);font-family:var(--mono)}
+
+  /* params grid + knobs */
+  .params{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;margin-top:4px}
+  .param{display:flex;flex-direction:column;gap:6px}
+  .param label{font-size:11px;color:var(--ink-dim);font-weight:600;display:flex;align-items:center;gap:6px}
+  .param label .llm{font-size:9px;letter-spacing:.08em;color:#f5c372;background:rgba(245,166,35,.14);
+    border:1px solid rgba(245,166,35,.3);padding:1px 6px;border-radius:999px}
+  .toggle{display:inline-flex;align-items:center;gap:9px;cursor:pointer;user-select:none}
+  .switch{width:38px;height:21px;border-radius:999px;background:rgba(255,255,255,.12);
+    border:1px solid var(--stroke);position:relative;transition:.18s;flex:none}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;
+    background:#cfd6e2;transition:.18s}
+  .toggle.on .switch{background:var(--accent);border-color:transparent}
+  .toggle.on .switch::after{left:19px;background:#0b0d16}
+  .toggle span{font-size:12.5px;color:var(--ink-dim)}
+
+  /* live CLI */
+  .cli{margin-top:16px;border-radius:var(--radius-sm);overflow:hidden;
+    border:1px solid var(--stroke-soft);background:rgba(0,0,0,.34)}
+  .cli .head{display:flex;align-items:center;gap:8px;padding:8px 13px;font-size:11px;
+    color:var(--ink-faint);border-bottom:1px solid var(--stroke-soft);background:rgba(255,255,255,.03)}
+  .cli .head b{color:var(--ink-dim);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:10px}
+  .cli .head .copy{margin-left:auto}
+  .cli code{display:block;padding:14px 15px;font-family:var(--mono);font-size:12.5px;line-height:1.6;
+    color:#d6e9ff;white-space:pre-wrap;word-break:break-word}
+  .cli code .c-bin{color:var(--t-read)} .cli code .c-cmd{color:#fff;font-weight:600}
+  .cli code .c-flag{color:#f5c372} .cli code .c-val{color:var(--t-draft)}
+
+  .runrow{display:flex;align-items:center;gap:14px;margin-top:16px}
+  .cta{flex:1;border:0;cursor:pointer;padding:15px;border-radius:15px;font-size:14.5px;font-weight:800;
+    letter-spacing:.2px;color:#0a1410;
+    background:linear-gradient(95deg,var(--cta-a),var(--cta-b) 42%,var(--cta-c));
+    box-shadow:0 14px 34px -12px rgba(126,240,192,.6),inset 0 1px 0 rgba(255,255,255,.5);
+    transition:.16s;display:flex;align-items:center;justify-content:center;gap:9px}
+  .cta:hover{filter:brightness(1.06);transform:translateY(-1px)}
+  .cta.write{color:#1a0b0e;background:linear-gradient(95deg,#ffd27a,#ff9d6e 50%,#ff6f8b);
+    box-shadow:0 14px 34px -12px rgba(255,93,115,.55),inset 0 1px 0 rgba(255,255,255,.45)}
+  .runhint{font-size:11px;color:var(--ink-faint);max-width:180px;line-height:1.4}
+
+  /* output */
+  .out{font-family:var(--mono);font-size:12px;line-height:1.62;color:#cdd7e6;white-space:pre-wrap;
+    background:rgba(0,0,0,.34);border:1px solid var(--stroke-soft);border-radius:var(--radius-sm);
+    padding:14px 15px;max-height:230px;overflow:auto;margin-top:4px}
+  .out .ok{color:var(--t-draft)} .out .path{color:var(--t-read)} .out .warn{color:#f5c372}
+  .out::-webkit-scrollbar{width:8px}.out::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:8px}
+  .outfoot{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+
+  /* ---------- inspector ---------- */
+  aside.insp{padding:0;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .insp .top{padding:15px 16px 0}
+  .insp h3{margin:0;font-size:14px;display:flex;align-items:center;gap:9px}
+  .insp .tabs{display:flex;gap:4px;margin:13px 0 0;border-bottom:1px solid var(--stroke-soft)}
+  .insp .tabs button{flex:1;border:0;background:transparent;color:var(--ink-faint);padding:9px;
+    font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;cursor:pointer;
+    border-bottom:2px solid transparent;transition:.15s}
+  .insp .tabs button.on{color:var(--ink);border-color:var(--accent)}
+  .insp .body{padding:15px 16px;overflow:auto;flex:1;min-height:0}
+  .insp .body::-webkit-scrollbar{width:8px}.insp .body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:8px}
+
+  .tierbig{border-radius:15px;padding:15px;border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);
+    background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 16%,transparent),rgba(255,255,255,.02));
+    box-shadow:0 0 28px -10px var(--accent)}
+  .tierbig .name{display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px}
+  .tierbig p{margin:9px 0 0;font-size:12px;color:var(--ink-dim);line-height:1.5}
+  .seclabel{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);
+    font-weight:700;margin:18px 0 9px;display:flex;align-items:center;gap:8px}
+  .seclabel::after{content:"";flex:1;height:1px;background:var(--stroke-soft)}
+  .kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:6px 0;
+    border-bottom:1px solid var(--stroke-soft)}
+  .kv .k{color:var(--ink-faint)} .kv .v{color:var(--ink);font-family:var(--mono);font-size:11.5px;text-align:right}
+  .knobs{display:flex;gap:14px;justify-content:space-around;margin:6px 0 2px}
+  .knob{display:flex;flex-direction:column;align-items:center;gap:7px}
+  .knob svg{filter:drop-shadow(0 0 8px color-mix(in srgb,var(--accent) 60%,transparent))}
+  .knob small{font-size:10px;color:var(--ink-faint)}
+  .confirmrow{display:flex;align-items:center;gap:10px;margin-top:6px;padding:11px 12px;border-radius:12px;
+    background:rgba(0,0,0,.22);border:1px solid var(--stroke-soft);font-size:12px;color:var(--ink-dim)}
+  .pathchip{font-family:var(--mono);font-size:11px;color:var(--t-read);background:rgba(52,224,224,.08);
+    border:1px solid rgba(52,224,224,.22);border-radius:9px;padding:7px 9px;margin-top:7px;word-break:break-all}
+
+  /* ---------- status bar ---------- */
+  footer{grid-column:1 / -1;display:flex;align-items:center;gap:16px;padding:0 16px;font-size:11px;
+    color:var(--ink-faint);font-family:var(--mono)}
+  footer .s{display:flex;align-items:center;gap:7px}
+  footer .spacer{flex:1}
+
+  /* ---------- modal ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(5,6,11,.62);backdrop-filter:blur(6px);
+    display:none;align-items:center;justify-content:center;z-index:50}
+  .scrim.show{display:flex}
+  .modal{width:min(540px,92vw);padding:24px}
+  .modal h3{margin:0 0 4px;font-size:17px;display:flex;align-items:center;gap:10px}
+  .modal .lead{font-size:13px;color:var(--ink-dim);margin:0 0 16px;line-height:1.55}
+  .modal .cli{margin:0 0 16px}
+  .modal .effects{list-style:none;padding:0;margin:0 0 20px}
+  .modal .effects li{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--ink-dim);
+    padding:7px 0;border-bottom:1px solid var(--stroke-soft)}
+  .modal .effects li b{color:var(--ink)}
+  .modal .effects svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--accent)}
+  .modal .foot{display:flex;gap:11px;justify-content:flex-end}
+  .modal .btn.ghost{background:transparent}
+  .modal .btn.go{border:0;color:#1a0b0e;font-weight:800;
+    background:linear-gradient(95deg,#ffd27a,#ff9d6e 50%,#ff6f8b)}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.05em;
+    padding:4px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);
+    color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ====================== HEADER ====================== -->
+  <header class="glass" style="border-radius:16px">
+    <div class="brandmark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#dffaf4" stroke-width="1.7"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H18a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.8.4L12 15l-7.2 4.9a.5.5 0 0 1-.8-.4z"/></svg>
+    </div>
+    <div class="brand">
+      <h1>Obsidian Librarian</h1>
+      <p>Glass + neon control surface — adapter over the existing CLI</p>
+    </div>
+    <div class="seg glass" style="border-radius:11px">
+      <button class="on">Workflows</button>
+      <button>Graph</button>
+      <button>Reports</button>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill"><span class="dot" style="color:var(--t-read)"></span><span class="vaultchip">~/Vault/PVplant</span></span>
+    <span class="pill amber on" id="llmToggle"><span class="dot" style="color:#1a1206"></span>LLM: off</span>
+    <span class="pill">Help</span>
+    <span class="pill" style="color:#cdeefe;border-color:rgba(52,224,224,.35);background:rgba(52,224,224,.10)">Export log</span>
+  </header>
+
+  <!-- ====================== SIDEBAR ====================== -->
+  <aside class="side glass">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input placeholder="Search workflows…" id="filter" />
+    </div>
+    <div class="actions" id="actions"></div>
+    <div class="legend">
+      <div style="color:var(--ink);font-weight:700;margin-bottom:7px;font-size:11px;letter-spacing:.1em;text-transform:uppercase">Safety tiers</div>
+      <div class="row"><span class="dot" style="color:var(--t-read)"></span> Read-only — no writes</div>
+      <div class="row"><span class="dot" style="color:var(--t-draft)"></span> Draft → <code style="font-family:var(--mono)">90_Staging/</code></div>
+      <div class="row"><span class="dot" style="color:var(--t-patron)"></span> Patron ingestion → <code style="font-family:var(--mono)">91_Ingestion/</code></div>
+      <div class="row"><span class="dot" style="color:var(--t-promote)"></span> Explicit promotion</div>
+    </div>
+  </aside>
+
+  <!-- ====================== MAIN ====================== -->
+  <main>
+    <!-- vault + intake -->
+    <section class="card glass">
+      <h2>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--t-read)" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Vault &amp; input
+        <span class="badge" id="vaultBadge">Source-preserving</span>
+      </h2>
+      <p class="sub">Pick a vault and choose inputs. Dropped / pasted text becomes a temp source with explicit provenance — raw files are never modified or deleted.</p>
+
+      <div class="vaultrow">
+        <div class="field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <input value="~/Vault/PVplant" spellcheck="false" />
+        </div>
+        <button class="btn">Browse…</button>
+      </div>
+
+      <div class="intake">
+        <div class="drop" id="drop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          <b>Drop Markdown · TXT · PDF</b>
+          <small>or click to choose a file — content is staged, never the original</small>
+        </div>
+        <div class="pastewrap">
+          <textarea id="paste" placeholder="Paste text to process as a temporary source…"></textarea>
+          <div class="pastemeta">
+            <span id="charcount">0 chars</span>
+            <span class="spacer" style="flex:1"></span>
+            <span>provenance:</span><span class="prov" id="prov">pasted-2026-05-31T00:00Z</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- selected action + params + live CLI -->
+    <section class="card glass">
+      <h2 id="actTitle">Search vault index<span class="badge" id="actBadge">Read-only</span></h2>
+      <p class="sub" id="actDesc">Deterministic full-text search across vault / staging / ingestion scopes.</p>
+
+      <div class="params" id="params"></div>
+
+      <div class="cli">
+        <div class="head"><b>Equivalent CLI</b><span style="color:var(--ink-faint)">runs the same function in-process</span>
+          <span class="pill copy" style="padding:4px 11px" onclick="copyText('cliCode')">Copy</span></div>
+        <code id="cliCode"></code>
+      </div>
+
+      <div class="runrow">
+        <button class="cta" id="runBtn" onclick="onRun()">Run</button>
+        <div class="runhint" id="runHint">Read-only — runs immediately, no confirmation needed.</div>
+      </div>
+    </section>
+
+    <!-- output -->
+    <section class="card glass">
+      <h2><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--t-draft)" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg> Result &amp; review</h2>
+      <p class="sub">Captured output from the command. Generated files and report paths are copyable.</p>
+      <div class="out" id="output"><span class="ok"># Obsidian Librarian Search</span>
+Query: buck converter
+Scope: vault-and-staging
+Searched files: 214
+Matched files: 7
+- <span class="path">90_Staging/Sources/buck_topology_md.source.md</span> (score=9, fields=title,body)
+- <span class="path">20_Power-Electronics/buck-converter.md</span> (score=6, fields=title)
+- <span class="path">91_Ingestion/buck-handbook/03_control-loop.md</span> (score=4, fields=body)</div>
+      <div class="outfoot">
+        <span class="pill" onclick="copyText('output')">Copy output</span>
+        <span class="pill">Copy paths</span>
+        <span class="pill">Open report</span>
+      </div>
+    </section>
+  </main>
+
+  <!-- ====================== INSPECTOR ====================== -->
+  <aside class="insp glass">
+    <div class="top">
+      <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg> Safety inspector</h3>
+      <div class="tabs">
+        <button class="on" data-tab="safety">Safety</button>
+        <button data-tab="prov">Provenance</button>
+      </div>
+    </div>
+
+    <div class="body" id="tab-safety">
+      <div class="tierbig" id="tierBig">
+        <div class="name"><span class="dot" style="color:var(--accent)"></span><span id="tierName">Read-only</span></div>
+        <p id="tierNote">This action reads the vault and writes nothing. Safe to run at any time.</p>
+      </div>
+
+      <div class="seclabel">Write gate</div>
+      <div class="confirmrow">
+        <span class="dot" id="gateDot" style="color:var(--accent)"></span>
+        <span id="gateText">No confirmation required for read-only actions.</span>
+      </div>
+
+      <div class="seclabel">Run parameters</div>
+      <div class="knobs">
+        <div class="knob">
+          <svg width="46" height="46" viewBox="0 0 46 46"><circle cx="23" cy="23" r="18" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="4"/><circle cx="23" cy="23" r="18" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="34" transform="rotate(-90 23 23)"/><circle cx="23" cy="14" r="2.2" fill="var(--accent)"/></svg>
+          <small>scope</small>
+        </div>
+        <div class="knob">
+          <svg width="46" height="46" viewBox="0 0 46 46"><circle cx="23" cy="23" r="18" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="4"/><circle cx="23" cy="23" r="18" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="70" transform="rotate(-90 23 23)"/></svg>
+          <small>depth</small>
+        </div>
+        <div class="knob">
+          <svg width="46" height="46" viewBox="0 0 46 46"><circle cx="23" cy="23" r="18" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="4"/><circle cx="23" cy="23" r="18" fill="none" stroke="rgba(245,166,35,.85)" stroke-width="4" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="100" transform="rotate(-90 23 23)"/></svg>
+          <small>llm mix</small>
+        </div>
+      </div>
+
+      <div class="seclabel">Connectivity</div>
+      <div class="kv"><span class="k">Binary</span><span class="v" id="binV">obsidian-librarian</span></div>
+      <div class="kv"><span class="k">Writes to</span><span class="v" id="writesV">— (read-only)</span></div>
+      <div class="kv"><span class="k">LLM</span><span class="v" id="llmV">disabled</span></div>
+      <div class="kv"><span class="k">Reversible</span><span class="v" id="revV">n/a</span></div>
+    </div>
+
+    <div class="body" id="tab-prov" style="display:none">
+      <div class="seclabel">Source provenance</div>
+      <div class="kv"><span class="k">Origin</span><span class="v">pasted text</span></div>
+      <div class="kv"><span class="k">Captured</span><span class="v">2026-05-31</span></div>
+      <div class="pathchip">tmp/obsidian-gui-xy12/pasted-2026-05-31T00:00Z.md</div>
+      <div class="seclabel">Last generated</div>
+      <div class="pathchip">90_Staging/review_report.md</div>
+      <div class="pathchip">90_Staging/Sources/buck_topology_md.source.md</div>
+      <p style="font-size:11.5px;color:var(--ink-faint);line-height:1.55;margin-top:14px">
+        Raw sources stay read-only. Promotion is the only path into trusted hubs, and every move records a
+        reversible <code style="font-family:var(--mono)">_promotion.json</code> ledger.</p>
+    </div>
+  </aside>
+
+  <!-- ====================== STATUS BAR ====================== -->
+  <footer>
+    <span class="s"><span class="dot" style="color:var(--t-draft)"></span> deterministic</span>
+    <span class="s"><span class="dot" style="color:var(--t-read)"></span> 127.0.0.1:8765 · token-gated</span>
+    <span class="s">no network · no embeddings · no autonomous mutation</span>
+    <span class="spacer"></span>
+    <span class="s">15 workflows</span>
+    <span class="s" id="footAction">search · read-only</span>
+  </footer>
+</div>
+
+<!-- ====================== CONFIRM MODAL ====================== -->
+<div class="scrim" id="scrim">
+  <div class="modal glass">
+    <h3><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      Confirm write action<span class="badge" id="mBadge" style="margin-left:auto">Promotion</span></h3>
+    <p class="lead" id="mLead">This is a write-capable action. Review the exact command and effects before continuing.</p>
+    <div class="cli"><div class="head"><b>Command to run</b><span class="copy pill" style="margin-left:auto;padding:4px 11px" onclick="copyText('mCli')">Copy</span></div><code id="mCli"></code></div>
+    <ul class="effects" id="mEffects"></ul>
+    <div class="foot">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn go" id="mGo" onclick="confirmRun()">Run write action</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   Concept data — mirrors the planned action registry / safety tiers.
+   No backend: "Run" shows canned output to demonstrate the flow.
+------------------------------------------------------------------ */
+const TIERS = {
+  'read-only':{label:'Read-only', c:'--t-read', note:'This action reads the vault and writes nothing. Safe to run at any time.',
+    gate:'No confirmation required for read-only actions.', confirm:false, writes:'— (read-only)', rev:'n/a'},
+  'draft':{label:'Draft → 90_Staging', c:'--t-draft', note:'Writes draft notes and a review report under 90_Staging/. Never touches trusted hubs.',
+    gate:'Confirmation required — writes to staging.', confirm:true, writes:'90_Staging/', rev:'yes (staging only)'},
+  'patron':{label:'Patron ingestion', c:'--t-patron', note:'Write-capable PDF intake. Output lands under 91_Ingestion/ for review before any promotion.',
+    gate:'Confirmation required — Patron writes to 91_Ingestion/.', confirm:true, writes:'91_Ingestion/', rev:'yes (delete folder)'},
+  'promote':{label:'Explicit promotion', c:'--t-promote', note:'Moves reviewed notes into staging or a trusted hub. Highest caution. A reversible ledger is recorded.',
+    gate:'Confirmation required — moves notes between zones.', confirm:true, writes:'staging / trusted hub', rev:'yes (unpromote)'},
+};
+
+/* fields: kind = text | select | toggle ; arg = pos | flag | flagval | fixed */
+const A = [
+ {g:'Librarian', items:[
+  {id:'ingest-preview', label:'Preview inbox ingest', icon:'eye', tier:'read-only', bin:'obsidian-librarian', cmd:'ingest',
+   desc:'Dry-run an inbox in read-only mode. Lists what would be staged without writing anything.',
+   fields:[{k:'inbox',label:'Inbox',kind:'text',arg:'pos',v:'./00_Inbox'},
+           {k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'},
+           {k:'--mode',label:'Mode',kind:'fixed',v:'read-only'},
+           {k:'--include-pdf',label:'Include PDFs',kind:'toggle',arg:'flag',v:false}]},
+  {id:'ingest-draft', label:'Draft ingest → staging', icon:'down', tier:'draft', bin:'obsidian-librarian', cmd:'ingest',
+   desc:'Convert Markdown / TXT inbox files into staged source notes plus a review report under 90_Staging/.',
+   fields:[{k:'inbox',label:'Inbox',kind:'text',arg:'pos',v:'./00_Inbox'},
+           {k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'},
+           {k:'--mode',label:'Mode',kind:'fixed',v:'draft'},
+           {k:'--include-pdf',label:'Include PDFs',kind:'toggle',arg:'flag',v:false},
+           {k:'--pdf-converter',label:'PDF converter',kind:'select',arg:'flagval',v:'none',opts:['none','docling']}]},
+  {id:'validate', label:'Validate staged notes', icon:'check', tier:'read-only', bin:'obsidian-librarian', cmd:'validate',
+   desc:'Schema / frontmatter / required-section checks over staged Markdown.',
+   fields:[{k:'path',label:'Path',kind:'text',arg:'pos',v:'./90_Staging'}]},
+  {id:'review-quality', label:'Review quality', icon:'star', tier:'read-only', bin:'obsidian-librarian', cmd:'review-quality',
+   desc:'Deterministic note-quality findings: blocking issues and suggestions.',
+   fields:[{k:'path',label:'Path',kind:'text',arg:'pos',v:'./90_Staging'}]},
+  {id:'index', label:'Index vault', icon:'layers', tier:'read-only', bin:'obsidian-librarian', cmd:'index',
+   desc:'Build the deterministic read-only inventory for a chosen scope.',
+   fields:[{k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'},
+           {k:'--scope',label:'Scope',kind:'select',arg:'flagval',v:'vault-and-staging',opts:['vault','staging','ingestion','vault-and-staging','vault-and-ingestion','staging-and-ingestion','all']}]},
+  {id:'search', label:'Search', icon:'search', tier:'read-only', bin:'obsidian-librarian', cmd:'search',
+   desc:'Deterministic full-text search across vault / staging / ingestion scopes.',
+   fields:[{k:'query',label:'Query',kind:'text',arg:'pos',v:'buck converter'},
+           {k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'},
+           {k:'--scope',label:'Scope',kind:'select',arg:'flagval',v:'vault-and-staging',opts:['vault','staging','ingestion','vault-and-staging','vault-and-ingestion','staging-and-ingestion','all']}]},
+  {id:'enrich', label:'Enrich (optional LLM)', icon:'spark', tier:'draft', bin:'obsidian-librarian', cmd:'enrich', llm:true,
+   desc:'Optional staged-note enrichment. Deterministic mock by default; OpenAI is opt-in, labeled, review-only.',
+   fields:[{k:'path',label:'Path',kind:'text',arg:'pos',v:'./90_Staging'},
+           {k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'},
+           {k:'--mode',label:'Mode',kind:'select',arg:'flagval',v:'read-only',opts:['read-only','draft']},
+           {k:'--extractor',label:'Extractor',kind:'select',arg:'flagval',v:'mock',opts:['mock','openai'],llm:true}]},
+ ]},
+ {g:'Patron', items:[
+  {id:'patron-ingest', label:'Ingest PDF', icon:'pdf', tier:'patron', bin:'obsidian-patron', cmd:'ingest',
+   desc:'Docling intake of one engineering PDF into 91_Ingestion/<slug>/ with manifest + sections.',
+   fields:[{k:'pdf',label:'PDF',kind:'text',arg:'pos',v:'./manual.pdf'},
+           {k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'},
+           {k:'--force',label:'Force re-ingest',kind:'toggle',arg:'flag',v:false}]},
+  {id:'patron-propose', label:'Propose classification', icon:'tag', tier:'patron', bin:'obsidian-patron', cmd:'propose', llm:true,
+   desc:'Deterministic hub/tag proposal written to _proposal.md. Optional LLM text is advisory and labeled.',
+   fields:[{k:'slug',label:'Slug',kind:'text',arg:'pos',v:'manual'},
+           {k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'},
+           {k:'--allow-new-tags',label:'Allow new tags',kind:'toggle',arg:'flag',v:false},
+           {k:'--llm',label:'Use LLM',kind:'toggle',arg:'flag',v:false,llm:true}]},
+  {id:'patron-link', label:'Link wikilinks', icon:'link', tier:'patron', bin:'obsidian-patron', cmd:'link',
+   desc:'Insert match-only wikilinks and write an unmatched-candidates report. Never creates stub notes.',
+   fields:[{k:'slug',label:'Slug',kind:'text',arg:'pos',v:'manual'},{k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'}]},
+  {id:'patron-unmatched', label:'Unmatched report', icon:'list', tier:'read-only', bin:'obsidian-patron', cmd:'unmatched',
+   desc:'Print the unmatched-candidate queue for manual note creation.',
+   fields:[{k:'slug',label:'Slug',kind:'text',arg:'pos',v:'manual'},{k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'}]},
+  {id:'patron-status', label:'Status', icon:'info', tier:'read-only', bin:'obsidian-patron', cmd:'status',
+   desc:'Show current location and provenance for an ingestion slug.',
+   fields:[{k:'slug',label:'Slug',kind:'text',arg:'pos',v:'manual'},{k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'}]},
+  {id:'patron-promote-staging', label:'Promote → staging', icon:'up', tier:'promote', bin:'obsidian-patron', cmd:'promote',
+   desc:'Move reviewed ingestion output into 90_Staging/. Records a reversible ledger.',
+   fields:[{k:'slug',label:'Slug',kind:'text',arg:'pos',v:'manual'},{k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'},
+           {k:'--to-staging',label:'',kind:'fixed-flag',v:true}]},
+  {id:'patron-promote-trusted', label:'Promote → trusted hub', icon:'shield', tier:'promote', bin:'obsidian-patron', cmd:'promote',
+   desc:'Move reviewed output into a named trusted hub. Fails on hub/proposal mismatch unless overridden.',
+   fields:[{k:'slug',label:'Slug',kind:'text',arg:'pos',v:'manual'},{k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'},
+           {k:'--to-trusted',label:'',kind:'fixed-flag',v:true},
+           {k:'--hub',label:'Hub',kind:'text',arg:'flagval',v:'20_Power-Electronics'},
+           {k:'--override',label:'Override gate',kind:'toggle',arg:'flag',v:false}]},
+  {id:'patron-unpromote', label:'Unpromote', icon:'undo', tier:'promote', bin:'obsidian-patron', cmd:'unpromote',
+   desc:'Reverse a recorded promotion using the _promotion.json ledger.',
+   fields:[{k:'slug',label:'Slug',kind:'text',arg:'pos',v:'manual'},{k:'--vault',label:'Vault',kind:'text',arg:'flagval',v:'.'}]},
+ ]},
+];
+
+const ICON = {
+ eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+ down:'<path d="M12 4v12m0 0 5-5m-5 5-5-5"/><path d="M5 20h14"/>',
+ check:'<path d="m4 12 5 5L20 6"/>', star:'<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z"/>',
+ layers:'<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>', search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+ spark:'<path d="M12 3v4m0 10v4m9-9h-4M7 12H3m13.5-5.5-2.8 2.8m-5.4 5.4-2.8 2.8m11-0-2.8-2.8M7.3 7.3 4.5 4.5"/>',
+ pdf:'<path d="M7 3h7l5 5v13a0 0 0 0 1 0 0H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/>',
+ tag:'<path d="M3 11.5 11.5 3H20a1 1 0 0 1 1 1v8.5L12.5 21z"/><circle cx="16.5" cy="7.5" r="1.3"/>',
+ link:'<path d="M9 15l6-6"/><path d="M11 6l1-1a4 4 0 0 1 6 6l-1 1"/><path d="M13 18l-1 1a4 4 0 0 1-6-6l1-1"/>',
+ list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+ info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-9h.01"/>',
+ up:'<path d="M12 20V8m0 0 5 5m-5-5-5 5"/><path d="M5 4h14"/>',
+ shield:'<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="m9 12 2 2 4-4"/>',
+ undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+};
+
+let current = null;
+const flat = A.flatMap(s => s.items);
+
+/* ---------- render sidebar ---------- */
+function renderSidebar(q=''){
+  const host = document.getElementById('actions'); host.innerHTML='';
+  A.forEach(sec=>{
+    const items = sec.items.filter(it=>it.label.toLowerCase().includes(q));
+    if(!items.length) return;
+    const gl=document.createElement('div'); gl.className='grouplabel';
+    gl.innerHTML = sec.g+'<span class="count">'+items.length+'</span>'; host.appendChild(gl);
+    items.forEach(it=>{
+      const c=getComputedStyle(document.documentElement).getPropertyValue(TIERS[it.tier].c);
+      const el=document.createElement('button'); el.className='act'+(current&&current.id===it.id?' on':'');
+      el.style.setProperty('--tc', c.trim());
+      el.innerHTML =
+        '<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">'+ICON[it.icon]+'</svg></span>'+
+        '<span class="meta"><b>'+it.label+'</b><span>'+it.bin+'</span></span>'+
+        '<span class="tdot dot"></span>';
+      el.onclick=()=>select(it.id);
+      host.appendChild(el);
+    });
+  });
+}
+
+/* ---------- build CLI ---------- */
+function buildCli(it){
+  const parts=[it.bin, it.cmd];
+  it.fields.forEach(f=>{
+    if(f.kind==='fixed'){ if(f.k.startsWith('--')) parts.push(f.k, f.v); else parts.push(f.k); return; }
+    if(f.kind==='fixed-flag'){ if(f.v) parts.push(f.k); return; }
+    if(f.arg==='pos'){ parts.push(quote(f.v)); }
+    else if(f.arg==='flag'){ if(f.v) parts.push(f.k); }
+    else if(f.arg==='flagval'){ if(f.v!=='' && f.v!=null) parts.push(f.k, quote(f.v)); }
+  });
+  return parts;
+}
+function quote(v){ return /\s/.test(v) ? '"'+v+'"' : v; }
+function highlight(parts){
+  return parts.map((p,i)=>{
+    if(i===0) return '<span class="c-bin">'+p+'</span>';
+    if(i===1) return '<span class="c-cmd">'+p+'</span>';
+    if(p.startsWith('--')) return '<span class="c-flag">'+p+'</span>';
+    return '<span class="c-val">'+p+'</span>';
+  }).join(' ');
+}
+
+/* ---------- render params ---------- */
+function renderParams(it){
+  const host=document.getElementById('params'); host.innerHTML='';
+  it.fields.forEach(f=>{
+    if(f.kind==='fixed'||f.kind==='fixed-flag') return;
+    const wrap=document.createElement('div'); wrap.className='param';
+    const lab=document.createElement('label');
+    lab.innerHTML=(f.label||f.k)+(f.llm?' <span class="llm">LLM</span>':'');
+    wrap.appendChild(lab);
+    if(f.kind==='text'){
+      const inp=document.createElement('div'); inp.className='field';
+      inp.innerHTML='<input value="'+f.v+'" spellcheck="false">';
+      inp.querySelector('input').oninput=e=>{f.v=e.target.value; refreshCli();};
+      wrap.appendChild(inp);
+    }else if(f.kind==='select'){
+      const inp=document.createElement('div'); inp.className='field';
+      const sel=document.createElement('select');
+      f.opts.forEach(o=>{const op=document.createElement('option');op.textContent=o;op.value=o;if(o===f.v)op.selected=true;sel.appendChild(op);});
+      sel.onchange=e=>{f.v=e.target.value; refreshCli();};
+      inp.appendChild(sel); wrap.appendChild(inp);
+    }else if(f.kind==='toggle'){
+      const t=document.createElement('div'); t.className='toggle'+(f.v?' on':'');
+      t.innerHTML='<span class="switch"></span><span>'+(f.v?'enabled':'disabled')+'</span>';
+      t.onclick=()=>{f.v=!f.v; t.classList.toggle('on',f.v); t.querySelector('span:last-child').textContent=f.v?'enabled':'disabled'; refreshCli();};
+      wrap.appendChild(t);
+    }
+    host.appendChild(wrap);
+  });
+}
+function refreshCli(){ document.getElementById('cliCode').innerHTML=highlight(buildCli(current)); }
+
+/* ---------- select action ---------- */
+function select(id){
+  current = flat.find(x=>x.id===id);
+  const t = TIERS[current.tier];
+  const c = getComputedStyle(document.documentElement).getPropertyValue(t.c).trim();
+  document.documentElement.style.setProperty('--accent', c);
+
+  document.getElementById('actTitle').innerHTML = current.label+'<span class="badge" id="actBadge">'+t.label+'</span>';
+  document.getElementById('actDesc').textContent = current.desc;
+  renderParams(current); refreshCli();
+
+  // run button + hint
+  const btn=document.getElementById('runBtn'); const hint=document.getElementById('runHint');
+  if(t.confirm){ btn.classList.add('write'); btn.textContent='Run write action';
+    hint.textContent='Write-capable — you’ll confirm the exact command before it runs.'; }
+  else { btn.classList.remove('write'); btn.textContent='Run';
+    hint.textContent='Read-only — runs immediately, no confirmation needed.'; }
+
+  // inspector
+  document.getElementById('tierName').textContent=t.label;
+  document.getElementById('tierNote').textContent=t.note;
+  document.getElementById('gateText').textContent=t.gate;
+  document.getElementById('binV').textContent=current.bin;
+  document.getElementById('writesV').textContent=t.writes;
+  document.getElementById('revV').textContent=t.rev;
+  const usesLlm = !!current.llm;
+  document.getElementById('llmV').textContent = usesLlm ? 'available (opt-in)' : 'disabled';
+
+  document.getElementById('footAction').textContent = current.cmd+' · '+current.tier;
+  renderSidebar(document.getElementById('filter').value.toLowerCase());
+}
+
+/* ---------- run / modal ---------- */
+function onRun(){
+  const t=TIERS[current.tier];
+  if(!t.confirm){ showOutput(); return; }
+  // confirm modal
+  document.getElementById('mBadge').textContent=t.label;
+  document.getElementById('mLead').textContent=t.note;
+  document.getElementById('mCli').innerHTML=highlight(buildCli(current));
+  const ef=document.getElementById('mEffects'); ef.innerHTML='';
+  effectsFor(current,t).forEach(e=>{
+    const li=document.createElement('li');
+    li.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 12 5 5L20 6"/></svg><div>'+e+'</div>';
+    ef.appendChild(li);
+  });
+  document.getElementById('scrim').classList.add('show');
+}
+function effectsFor(it,t){
+  const arr=['Writes to <b>'+t.writes+'</b> only — never to raw sources.',
+             'Operation is <b>'+t.rev+'</b> reversible.'];
+  if(it.tier==='promote') arr.push('Records a <b>_promotion.json</b> ledger so <b>unpromote</b> can restore the prior location.');
+  if(it.llm && it.fields.some(f=>f.llm&&f.v)) arr.push('LLM output is <b>proposal-only</b>, labeled, and never written into ingested or trusted notes.');
+  return arr;
+}
+function confirmRun(){ closeModal(); showOutput(); }
+function closeModal(){ document.getElementById('scrim').classList.remove('show'); }
+
+const OUT = {
+ 'search':'<span class="ok"># Obsidian Librarian Search</span>\nQuery: buck converter\nScope: vault-and-staging\nSearched files: 214\nMatched files: 7\n- <span class="path">20_Power-Electronics/buck-converter.md</span> (score=6)\n- <span class="path">91_Ingestion/buck-handbook/03_control-loop.md</span> (score=4)',
+ 'index':'<span class="ok"># Obsidian Librarian Index</span>\nScope: vault-and-staging\nScanned files: 214\nIndexed records: 198',
+ 'validate':'<span class="ok"># Validation passed</span>\nChecked Markdown files: 12\nSkipped (reports): 1\nIssues: 0',
+ 'review-quality':'<span class="ok"># Note Quality Review</span>\nVerdict: pass with suggestions\nBlocking findings: 0\nSuggestions: 3\n- <span class="warn">90_Staging/Sources/note.source.md</span> — add at least one wikilink',
+ 'ingest-preview':'<span class="ok"># Read-only preview</span>\nProcessed files: 4\nGenerated notes: 0\n<span class="warn">Read-only mode: no staged notes or reports were written.</span>',
+ 'ingest-draft':'<span class="ok"># Ingest complete</span>\nProcessed files: 4\nGenerated notes: 4\nReview report written to: <span class="path">90_Staging/review_report.md</span>',
+ 'enrich':'<span class="ok"># Obsidian Librarian Enrichment</span>\nExtractor: mock\nMode: read-only\nChecked files: 6   Outputs: 6   Failures: 0',
+ 'patron-ingest':'<span class="ok">Ingested: manual</span>\nOutput: <span class="path">91_Ingestion/manual</span>\nManifest: <span class="path">91_Ingestion/manual/_ingest_manifest.json</span>',
+ 'patron-propose':'<span class="ok">Proposal: 91_Ingestion/manual/_proposal.md</span>\nClassification: 20_Power-Electronics  (tags: inverter, mppt)',
+ 'patron-link':'<span class="ok">Linked files: 5</span>\nMatched candidates: 11\nUnmatched candidates: 4\nUnmatched report: <span class="path">91_Ingestion/manual/_unmatched_candidates.md</span>',
+ 'patron-unmatched':'# Unmatched candidates\n- maximum power point  (x6)\n- duty cycle  (x4)',
+ 'patron-status':'Slug: manual\nLocation: <span class="path">91_Ingestion/manual</span>\nManifest: present   Proposal: present   Promotion ledger: missing',
+ 'patron-promote-staging':'<span class="ok">Promoted to: staging</span>\nSource: 91_Ingestion/manual\nDestination: <span class="path">90_Staging/manual</span>\nLedger: <span class="path">90_Staging/manual/_promotion.json</span>',
+ 'patron-promote-trusted':'<span class="ok">Promoted to: trusted</span>\nSource: 90_Staging/manual\nDestination: <span class="path">20_Power-Electronics/manual</span>\nLedger: <span class="path">20_Power-Electronics/manual/_promotion.json</span>',
+ 'patron-unpromote':'<span class="ok">Unpromoted from: 20_Power-Electronics/manual</span>\nRestored to: <span class="path">90_Staging/manual</span>',
+};
+function showOutput(){
+  const txt = OUT[current.id] || ('<span class="ok"># '+current.label+'</span>\n(concept output)');
+  document.getElementById('output').innerHTML = txt;
+  document.getElementById('output').scrollTop=0;
+}
+
+/* ---------- misc interactions ---------- */
+function copyText(id){
+  const el=document.getElementById(id);
+  navigator.clipboard && navigator.clipboard.writeText(el.innerText);
+}
+document.querySelectorAll('.insp .tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.insp .tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  document.getElementById('tab-safety').style.display = b.dataset.tab==='safety'?'block':'none';
+  document.getElementById('tab-prov').style.display = b.dataset.tab==='prov'?'block':'none';
+});
+document.getElementById('filter').oninput=e=>renderSidebar(e.target.value.toLowerCase());
+
+const drop=document.getElementById('drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('hover');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hover');}));
+
+const paste=document.getElementById('paste');
+paste.oninput=()=>{ document.getElementById('charcount').textContent=paste.value.length+' chars'; };
+
+const llm=document.getElementById('llmToggle'); let llmOn=false;
+llm.onclick=()=>{ llmOn=!llmOn; llm.classList.toggle('on',!llmOn);
+  llm.childNodes[1].textContent = 'LLM: '+(llmOn?'on (opt-in)':'off'); };
+
+document.getElementById('scrim').addEventListener('click',e=>{ if(e.target.id==='scrim') closeModal(); });
+
+/* init */
+renderSidebar();
+select('search');
+</script>
+</body>
+</html>

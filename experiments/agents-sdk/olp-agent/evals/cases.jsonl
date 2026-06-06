@@ -1,0 +1,5 @@
+{"id":"deploy_dry_run_no_write","kind":"deploy_dry_run"}
+{"id":"approved_deploy_creates_infra","kind":"approved_deploy"}
+{"id":"scan_classifies_routes","kind":"scan_classify"}
+{"id":"missing_write_approval","kind":"missing_write_approval"}
+{"id":"search_plans_explicit_vault","kind":"search_plan"}

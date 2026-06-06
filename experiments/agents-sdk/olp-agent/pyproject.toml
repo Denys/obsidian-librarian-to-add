@@ -1,0 +1,33 @@
+[project]
+name = "olp-agents-sdk-agent"
+version = "0.1.0"
+description = "Standalone OpenAI Agents SDK operator for OLP target-library deployment and ingestion workflows."
+requires-python = ">=3.11"
+dependencies = [
+  "openai-agents==0.17.4",
+  "pydantic>=2.8",
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+]
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["olp_agent*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "evals"]
+pythonpath = ["."]
